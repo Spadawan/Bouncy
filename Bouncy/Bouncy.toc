@@ -1,0 +1,15 @@
+## Interface: 120005, 110002, 11504, 40400, 30403, 20505
+## Title: |cffA0E4FF✦ Bouncy|r
+## Notes: Counts jumps, streaks and sit-downs. Level up your bunny companion!
+## Author: Bouncy
+## Version: 1.0.0
+## SavedVariables: Bouncy_DB
+
+Core\Namespace.lua
+Core\Database.lua
+Core\Tracker.lua
+Core\Leveling.lua
+UI\Overlay.lua
+UI\Details.lua
+UI\Config.lua
+Core\Init.lua

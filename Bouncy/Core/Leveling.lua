@@ -1,0 +1,76 @@
+-------------------------------------------------------------------------------
+-- Core/Leveling.lua
+-- XP, level-up logic, title unlock detection.
+-------------------------------------------------------------------------------
+
+local B        = _G.Bouncy
+B.Leveling     = {}
+local Leveling = B.Leveling
+
+function Leveling:GetLevelForXP(xp)
+    local current = B.LEVELS[1]
+    for i = #B.LEVELS, 1, -1 do
+        if xp >= B.LEVELS[i].threshold then
+            current = B.LEVELS[i]
+            break
+        end
+    end
+    return current
+end
+
+function Leveling:GetNextLevel(currentLevel)
+    for _, lvl in ipairs(B.LEVELS) do
+        if lvl.level == currentLevel + 1 then return lvl end
+    end
+    return nil
+end
+
+-- Returns frac [0-1], current level data, next level data (or nil if max)
+function Leveling:GetProgress(xp)
+    local cur  = self:GetLevelForXP(xp)
+    local next = self:GetNextLevel(cur.level)
+    if not next then return 1.0, cur, nil end
+    local xpInto  = xp - cur.threshold
+    local xpNeeded= next.threshold - cur.threshold
+    return math.min(1.0, xpInto / xpNeeded), cur, next
+end
+
+-- Evaluate XP progression, fire level-up callbacks if needed.
+-- Also checks for new title unlocks based on total jumps.
+function Leveling:Evaluate(prog)
+    local newLevelData = self:GetLevelForXP(prog.xp)
+    if newLevelData.level > (prog.level or 1) then
+        prog.level = newLevelData.level
+        for _, fn in ipairs(B._levelUpCallbacks or {}) do
+            pcall(fn, newLevelData)
+        end
+        return newLevelData
+    end
+    return nil
+end
+
+-- Check if a new title was just unlocked; called after RecordJump.
+-- Returns the title entry if newly unlocked, else nil.
+function Leveling:CheckTitleUnlock(totalJumps)
+    for _, t in ipairs(B.TITLES) do
+        if totalJumps == t.jumps then
+            return t
+        end
+    end
+    return nil
+end
+
+function Leveling:RegisterLevelUpCallback(fn)
+    B._levelUpCallbacks = B._levelUpCallbacks or {}
+    table.insert(B._levelUpCallbacks, fn)
+end
+
+function Leveling:FormatXP(xp)
+    local frac, cur, next = self:GetProgress(xp)
+    if not next then
+        return string.format("|cff%sMAX LEVEL|r", B.COLOR.LEVEL_UP)
+    end
+    return string.format("|cff%s%s|r / |cff%s%s|r XP",
+        B.COLOR.XP,  B.FormatNum(xp - cur.threshold),
+        B.COLOR.DIM, B.FormatNum(next.threshold - cur.threshold))
+end
