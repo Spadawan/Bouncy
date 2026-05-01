@@ -77,8 +77,8 @@ local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo, of
 
     local elapsed = 0
     local sign = goDown and -1 or 1
-    local DX  = isCombo and 32 or 8
-    local DY  = sign * (isCombo and 42 or 55)
+    local DX  = isCombo and -32 or -8
+    local DY  = sign * (isCombo and 21 or 27.5)
     local DUR = isCombo and 1.5 or 1.3
 
     p:SetScript("OnUpdate", function(self, dt)
@@ -343,8 +343,10 @@ function Overlay:OnJump(data)
     -- Auto-show overlay, restart hide timer
     if s.overlayVisible then
         local targetAlpha = s.overlayAlpha or 0.95
+        if self._fadeTimer then self._fadeTimer:Cancel(); self._fadeTimer = nil end
+        UIFrameFadeRemoveFrame(self.frame)
         self.frame:Show()
-        UIFrameFadeIn(self.frame, 0.15, self.frame:GetAlpha(), targetAlpha)
+        self.frame:SetAlpha(targetAlpha)
         if self._hideTimer then self._hideTimer:Cancel() end
         self._hideTimer = C_Timer.After(OVERLAY_SHOW_DUR, function()
             if B.Details and B.Details:IsCustomPanelVisible() then
@@ -352,17 +354,16 @@ function Overlay:OnJump(data)
                 return
             end
             UIFrameFadeOut(self.frame, OVERLAY_FADE_DUR, self.frame:GetAlpha(), 0)
-            C_Timer.After(OVERLAY_FADE_DUR, function()
+            self._fadeTimer = C_Timer.After(OVERLAY_FADE_DUR, function()
                 self.frame:Hide()
                 self.frame:SetAlpha(targetAlpha)
                 self._hideTimer = nil
+                self._fadeTimer = nil
             end)
         end)
     end
 
-    if s.squishEnabled ~= false then
-        AnimSquish(self.jumpNum)
-    end
+    -- Squish animation disabled (unreliable on some clients/fontstrings)
 
     if s.showPlusOne then
         local isCombo = data.mult > 1

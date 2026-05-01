@@ -18,5 +18,8 @@ function Config:Toggle()
     if B.Details then
         B.Details:Show()
         B.Details:ShowPanel(4)
+        if B.Overlay and B.Overlay.frame then
+            B.Overlay:Show()
+        end
     end
 end

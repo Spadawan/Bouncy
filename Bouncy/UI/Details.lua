@@ -389,8 +389,9 @@ function Details:_RefreshZones(p)
             btn:SetBackdropBorderColor(isActive and 0.5 or 0.25,
                                        isActive and 0.75 or 0.35,
                                        isActive and 1.0 or 0.55, 0.8)
+            local classHex = ClassColorHex(char.class)
             btn._fs:SetText(string.format("|cff%s%s|r\n|cff%s%s jumps|r",
-                "AADDFF", char.name or key,
+                classHex, char.name or key,
                 B.COLOR.DIM, B.FormatNum(char.totalJumps or 0)))
             btn:Show()
         end
@@ -942,9 +943,6 @@ function Details:_BuildCustomPanel(p)
     -- ============================================================
     SectionHdr("Animations")
 
-    Checkbox("Squish counter on jump", nil,
-        function() return s.squishEnabled ~= false end,
-        function(v) s.squishEnabled = v end)
     Checkbox("Show +Exp animation", nil,
         function() return s.showPlusOne    end,
         function(v) s.showPlusOne = v       end)
