@@ -851,6 +851,7 @@ function Details:_BuildCustomPanel(p)
 
         local preview = c:CreateFontString(nil, "OVERLAY")
         preview:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y - 40)
+        preview:SetFont(s.overlayFont or "Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
         preview:SetTextColor(1, 1, 1)
         preview:SetText("0  1  2  3  JUMPS  Exp")
 
