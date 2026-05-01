@@ -623,6 +623,7 @@ function Details:_BuildCustomPanel(p)
     sf:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
     c:SetHeight(600)
 
+    p._updaters = {}
     local y = -8
 
     -- Helper: section header
@@ -657,6 +658,7 @@ function Details:_BuildCustomPanel(p)
             end)
             cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
         end
+        table.insert(p._updaters, function() cb:SetChecked(getter()) end)
         y = y - 26
         return cb
     end
@@ -684,6 +686,7 @@ function Details:_BuildCustomPanel(p)
             setter(val)
             if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
         end)
+        table.insert(p._updaters, function() sl:SetValue(getter()) end)
         y = y - 42
         return sl
     end
@@ -726,6 +729,7 @@ function Details:_BuildCustomPanel(p)
                 UpdateSwatch()
                 if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
             end)
+            table.insert(p._updaters, function() sl:SetValue(getter()[ch]) end)
             return sl
         end
         makeChannel("r", "R", y);       y = y - 30
@@ -758,6 +762,7 @@ function Details:_BuildCustomPanel(p)
             UpdateBtn()
             if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
         end)
+        table.insert(p._updaters, function() UpdateBtn() end)
         y = y - 28
     end
 
@@ -840,18 +845,14 @@ function Details:_BuildCustomPanel(p)
     y = y - 4
 
     -- ============================================================
-    --  SECTION 5: Streak & Sounds
+    --  SECTION 5: Streak
     -- ============================================================
-    SectionHdr("Streak & Sounds")
+    SectionHdr("Streak")
 
     Slider("Streak badge threshold", 1, 10, 1,
         function() return s.streakThreshold or 3 end,
         function(v) s.streakThreshold = v end,
         "%.0f jumps")
-
-    Checkbox("Sound at streak x10",                  nil,
-        function() return s.soundOnStreak  end,
-        function(v) s.soundOnStreak = v     end)
     y = y - 4
 
     -- ============================================================
@@ -864,6 +865,18 @@ function Details:_BuildCustomPanel(p)
         function(v) s.overlayLocked = v     end)
 
     y = y - 8
+    local defaultsBtn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
+    defaultsBtn:SetSize(180, 24)
+    defaultsBtn:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
+    defaultsBtn:SetText("Reset to defaults")
+    defaultsBtn:SetScript("OnClick", function()
+        B.DB:ResetSettings()
+        for _, fn in ipairs(p._updaters) do fn() end
+        if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
+        print(string.format("|cffA0E4FFBouncy|r  Settings reset to defaults."))
+    end)
+    y = y - 32
+
     local resetBtn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
     resetBtn:SetSize(180, 24)
     resetBtn:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)

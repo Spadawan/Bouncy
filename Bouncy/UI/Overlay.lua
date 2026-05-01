@@ -256,13 +256,6 @@ function Overlay:Init()
         local point,_,_,x,y = self:GetPoint()
         B.DB:SaveOverlayPosition(point, x, y)
     end)
-    f:SetScript("OnEnter", function(self)
-        UIFrameFadeIn(self, 0.15, self:GetAlpha(), 1.0)
-    end)
-    f:SetScript("OnLeave", function(self)
-        local s = B.DB:GetSettings()
-        UIFrameFadeOut(self, 0.30, self:GetAlpha(), s.overlayAlpha)
-    end)
     f:SetScript("OnMouseDown", function(self, btn)
         if btn == "RightButton" then B.Details:Toggle() end
     end)
@@ -271,7 +264,7 @@ function Overlay:Init()
     self:ApplySettings()
     self:Refresh()
 
-    if settings.overlayVisible then f:Show() else f:Hide() end
+    f:Hide()  -- overlay auto-shows on jump, hides after
 
     B.Tracker:RegisterCallback(function(event, data)
         if event == "JUMP"               then self:OnJump(data)
@@ -305,8 +298,27 @@ end
 -------------------------------------------------------------------------------
 -- Events
 -------------------------------------------------------------------------------
+local OVERLAY_SHOW_DUR  = 3.0   -- seconds overlay stays visible after a jump
+local OVERLAY_FADE_DUR  = 1.2   -- seconds for fade-out
+
 function Overlay:OnJump(data)
     local s = B.DB:GetSettings()
+
+    -- Auto-show overlay, restart hide timer
+    if s.overlayVisible then
+        local targetAlpha = s.overlayAlpha or 0.95
+        self.frame:Show()
+        UIFrameFadeIn(self.frame, 0.15, self.frame:GetAlpha(), targetAlpha)
+        if self._hideTimer then self._hideTimer:Cancel() end
+        self._hideTimer = C_Timer.After(OVERLAY_SHOW_DUR, function()
+            UIFrameFadeOut(self.frame, OVERLAY_FADE_DUR, self.frame:GetAlpha(), 0)
+            C_Timer.After(OVERLAY_FADE_DUR, function()
+                self.frame:Hide()
+                self.frame:SetAlpha(targetAlpha)
+                self._hideTimer = nil
+            end)
+        end)
+    end
 
     if s.squishEnabled ~= false then
         AnimSquish(self.frame)
@@ -325,8 +337,8 @@ function Overlay:OnJump(data)
         end
 
         local label = data.mult > 1
-            and string.format("+%d (x%.1f)", data.xpGained, data.mult)
-            or  string.format("+%d", data.xpGained)
+            and string.format("+%d Exp (x%.1f)", data.xpGained, data.mult)
+            or  string.format("+%d Exp", data.xpGained)
         local col = data.mult > 1 and "FFD700" or "FFFFFF"
         SpawnPlusOne(self.frame, label, col, goUp, s.plusOneSize or 13)
     end
@@ -342,8 +354,6 @@ function Overlay:OnJump(data)
     self:Refresh()
 
     if data.newTitle then self:OnTitleUnlock(data.newTitle) end
-
-    if s.soundOnStreak and data.streak == 10 then PlaySound(5274) end
 end
 
 function Overlay:OnStreakBreak()

@@ -36,8 +36,6 @@ local DEFAULTS = {
         squishEnabled    = true,    -- squish animation on jump
         -- Streak badge
         streakThreshold  = 3,       -- minimum streak to show badge (1-10)
-        -- Sounds
-        soundOnStreak    = true,    -- UI sound when streak reaches 10
         -- Details window
         detailsWidth     = 560,
         detailsHeight    = 500,
@@ -193,6 +191,14 @@ end
 -------------------------------------------------------------------------------
 -- Reset helpers
 -------------------------------------------------------------------------------
+function DB:ResetSettings()
+    local s = Bouncy_DB.settings
+    local pos = s.overlayPoint
+    for k in pairs(s) do s[k] = nil end
+    deepMerge(s, DEFAULTS.settings)
+    s.overlayPoint = pos
+end
+
 function DB:ResetChar()
     local key = self:CharKey()
     Bouncy_DB.characters[key] = nil
