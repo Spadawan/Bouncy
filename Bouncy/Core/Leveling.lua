@@ -24,8 +24,8 @@ function Leveling:GetLevelsForProgression(prog)
     return B.LEVELS
 end
 
-function Leveling:GetLevelForXP(xp)
-    local levels = self:GetLevelsForProgression(B.DB and B.DB:GetProgression() or nil)
+function Leveling:GetLevelForXP(xp, forceBase)
+    local levels = forceBase and B.LEVELS or self:GetLevelsForProgression(B.DB and B.DB:GetProgression() or nil)
     local current = levels[1]
     for i = #levels, 1, -1 do
         if xp >= levels[i].threshold then

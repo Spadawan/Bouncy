@@ -80,6 +80,23 @@ local function PlayCreaturePopup(p, text, color)
     end)
 end
 
+local function PlayCreatureLevelupShine(p)
+    if not p._levelupShineFx then return end
+    p._levelupShineFx:SetTexture(p.artwork:GetTexture())
+    p._levelupShineFx:SetVertexColor(1.0, 0.92, 0.25, 1)
+    p._levelupShineFx:SetAlpha(0)
+    if not p._levelupShineAnim then
+        local ag = p._levelupShineFx:CreateAnimationGroup()
+        local fi = ag:CreateAnimation("Alpha")
+        fi:SetFromAlpha(0); fi:SetToAlpha(0.78); fi:SetDuration(0.12); fi:SetOrder(1)
+        local fo = ag:CreateAnimation("Alpha")
+        fo:SetFromAlpha(0.78); fo:SetToAlpha(0); fo:SetDuration(0.9); fo:SetOrder(2)
+        p._levelupShineAnim = ag
+    end
+    p._levelupShineAnim:Stop()
+    p._levelupShineAnim:Play()
+end
+
 local function SpawnCreatureParticles(p, evolve)
     if not p.frame or not p.artwork then return end
     for i = 1, (evolve and 24 or 14) do
@@ -391,6 +408,7 @@ function Details:_BuildStatsPanel(p)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
             PlayCreatureEvolveAnim(p)
+            PlayCreatureLevelupShine(p)
             SpawnCreatureParticles(p, true)
             PlayCreaturePopup(p, "Level up!", {0.4, 1.0, 0.3})
             if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\LevelUp.ogg", "SFX") end
@@ -401,6 +419,7 @@ function Details:_BuildStatsPanel(p)
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
                 local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
                 PlayCreatureFeedAnim(p)
+                if autoLevel then PlayCreatureLevelupShine(p) end
                 SpawnCreatureParticles(p, false)
                 PlayCreaturePopup(p, autoLevel and "Level up!" or "+50 EXP", {0.4, 1.0, 0.3})
                 if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\iEating1.ogg", "SFX") end
@@ -457,6 +476,9 @@ function Details:_BuildStatsPanel(p)
     local evolveNewFx = p:CreateTexture(nil, "OVERLAY")
     evolveNewFx:SetAllPoints(artwork); evolveNewFx:SetAlpha(0)
     p._evolveNewFx = evolveNewFx
+    local levelupFx = p:CreateTexture(nil, "OVERLAY")
+    levelupFx:SetAllPoints(artwork); levelupFx:SetAlpha(0)
+    p._levelupShineFx = levelupFx
 end
 
 function Details:_RefreshStats(p)
@@ -495,7 +517,7 @@ function Details:_RefreshStats(p)
         p.xpBar:Show()
         p.xpLabel:Show()
     end
-    local playerLevelData = B.Leveling:GetLevelForXP(prog.xp or 0)
+    local playerLevelData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
     local _, pCur, pNext = B.Leveling:GetProgress(prog.xp or 0)
     local playerFrac = 1
     if pNext then

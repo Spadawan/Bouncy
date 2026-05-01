@@ -85,7 +85,7 @@ function Community:Broadcast(force)
 
     local char = B.DB:GetChar() or {}
     local prog = B.DB:GetProgression() or {}
-    local lvlData = B.Leveling:GetLevelForXP(prog.xp or 0)
+    local lvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
     local payload = table.concat({
         "B",
         tostring((char.totalJumps or 0)),

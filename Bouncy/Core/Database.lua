@@ -133,7 +133,7 @@ function DB:RecordJump(zoneName)
     end
     Bouncy_DB.leaderboard[key].jumps = char.totalJumps
     local prog = self:GetProgression()
-    local lvlData = B.Leveling and B.Leveling.GetLevelForXP and B.Leveling:GetLevelForXP(prog.xp or 0) or { level = 1 }
+    local lvlData = B.Leveling and B.Leveling.GetLevelForXP and B.Leveling:GetLevelForXP(prog.xp or 0, true) or { level = 1 }
     Bouncy_DB.leaderboard[key].level = lvlData.level or 1
     Bouncy_DB.leaderboard[key].petLevel = prog.level or 1
     Bouncy_DB.leaderboard[key].bestStreak = char.bestStreak or 0
