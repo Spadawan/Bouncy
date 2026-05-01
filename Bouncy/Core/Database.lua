@@ -171,13 +171,16 @@ end
 function DB:GetProgression()
     local key = self:CharKey()
     if not Bouncy_DB.progression[key] then
-        Bouncy_DB.progression[key] = { xp = 0, level = 1, creatureXP = 0, creatureType = nil }
+        Bouncy_DB.progression[key] = { xp = 0, level = 1, creatureXP = 0, creatureType = nil, bonusXPFraction = 0 }
     end
     if Bouncy_DB.progression[key].creatureType == "" then
         Bouncy_DB.progression[key].creatureType = nil
     end
     if type(Bouncy_DB.progression[key].creatureXP) ~= "number" then
         Bouncy_DB.progression[key].creatureXP = 0
+    end
+    if type(Bouncy_DB.progression[key].bonusXPFraction) ~= "number" then
+        Bouncy_DB.progression[key].bonusXPFraction = 0
     end
     return Bouncy_DB.progression[key]
 end

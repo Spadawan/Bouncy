@@ -84,8 +84,14 @@ local function OnJump()
     end)
 
     local mult, multColor = GetStreakMultiplier(streak)
-    local xpGained = math.floor(1 * mult)
-    local prog = B.DB:AddXP(xpGained)
+    local baseXP = math.floor(1 * mult)
+    local prog = B.DB:GetProgression()
+    local creatureLevel = prog.level or 1
+    local bonusExact = (baseXP * (creatureLevel * 0.01)) + (prog.bonusXPFraction or 0)
+    local bonusXP = math.floor(bonusExact)
+    prog.bonusXPFraction = bonusExact - bonusXP
+    local xpGained = baseXP + bonusXP
+    B.DB:AddXP(xpGained)
 
     B.DB:RecordJump(zone)
     local newLevel  = nil

@@ -432,11 +432,11 @@ function Details:_BuildStatsPanel(p)
         bx = bx + 76
         table.insert(p.typeButtons, btn)
     end
-    local totalW = (#(p.typeButtons) * 72) + ((#(p.typeButtons) - 1) * 4)
-    local startX = -math.floor(totalW / 2)
+    local spacing = 76
+    local startX = -math.floor(((#p.typeButtons - 1) * spacing) / 2)
     for i, btn in ipairs(p.typeButtons) do
         btn:ClearAllPoints()
-        btn:SetPoint("BOTTOMLEFT", p.typeHint, "TOPLEFT", startX + ((i - 1) * 76), 6)
+        btn:SetPoint("TOP", p.typeHint, "BOTTOM", startX + ((i - 1) * spacing), -6)
     end
 
     local popupText = MakeFont(p, 12, "OUTLINE")
