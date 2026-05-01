@@ -18,21 +18,22 @@ local DEFAULTS = {
         overlayScale     = 1.0,
         overlayPoint     = { point = "CENTER", x = 0, y = 200 },
         overlayAlpha     = 0.95,
-        -- Ultra Minimal mode: hide bg, border, title, XP bar, level
-        ultraMinimal     = false,
+        overlayFont      = "Fonts\\FRIZQT__.TTF",
+        -- Minimal mode: transparent bg/border by default; elements controlled individually
+        ultraMinimal     = true,
         -- Overlay elements
-        showTitle        = true,    -- "BOUNCY" label
+        showTitle        = false,   -- "BOUNCY" label
         showJumpsLabel   = true,    -- "JUMPS" sub-label
-        showLevel        = true,    -- Lv.X bottom right
+        showLevel        = false,   -- Lv.X bottom right
         showXPBar        = true,    -- XP progress bar
-        showPlusOne      = true,    -- floating +1 animation
+        showPlusOne      = true,    -- floating +Exp animation
         showStreak       = true,    -- streak badge
         -- Appearance
         overlayFontSize  = 26,      -- main jump counter font size (18-40)
         jumpTextColor    = { r=1.0, g=1.0, b=1.0 },  -- jump counter color
         -- Animations
         plusOneDirection = "auto",  -- "auto" | "up" | "down"
-        plusOneSize      = 13,      -- font size of +1 text (10-22)
+        plusOneSize      = 16,      -- font size of +Exp text (10-22)
         squishEnabled    = true,    -- squish animation on jump
         -- Streak badge
         streakThreshold  = 3,       -- minimum streak to show badge (1-10)

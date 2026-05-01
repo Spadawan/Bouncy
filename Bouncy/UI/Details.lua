@@ -325,7 +325,10 @@ function Details:_RefreshZones(p)
     end)
 
     if not activeCharKey or not chars[activeCharKey] then
-        activeCharKey = keys[1]
+        activeCharKey = B.DB:CharKey()
+        if not chars[activeCharKey] then
+            activeCharKey = keys[1]
+        end
     end
 
     -------- Char list: rebuild buttons only when the key set changes --------
@@ -617,20 +620,67 @@ end
 -- PANEL 4 — Customize
 -- All controls apply immediately and call Overlay:ApplySettings().
 -------------------------------------------------------------------------------
+
+-- Palette of preset colors for the jump counter
+local PALETTE_COLORS = {
+    "FFFFFF", "FFFF00", "FFD700", "FF8844", "FF4444", "FF00BB", "CC44FF", "6688FF",
+    "00AAFF", "00DDCC", "00FF88", "66FF33", "A0E4FF", "FFB6C1", "CCCCCC", "888888",
+}
+
+local function HexToRGB(hex)
+    return tonumber(hex:sub(1,2),16)/255,
+           tonumber(hex:sub(3,4),16)/255,
+           tonumber(hex:sub(5,6),16)/255
+end
+
+local function RGBToHex(r, g, b)
+    return string.format("%02X%02X%02X",
+        math.floor(r*255+0.5), math.floor(g*255+0.5), math.floor(b*255+0.5))
+end
+
+local function BuildFontList()
+    local list = {
+        { name = "Friz Quadrata",  path = "Fonts\\FRIZQT__.TTF"  },
+        { name = "Arial Narrow",   path = "Fonts\\ARIALN.TTF"    },
+        { name = "Morpheus",       path = "Fonts\\MORPHEUS.TTF"  },
+        { name = "Skurri",         path = "Fonts\\skurri.TTF"    },
+        { name = "Expressway",     path = "Fonts\\EXPRESWAY.TTF" },
+    }
+    if LibStub then
+        local ok, LSM = pcall(LibStub, "LibSharedMedia-3.0", true)
+        if ok and LSM then
+            local ht  = LSM:HashTable("font")
+            local seen = {}
+            for _, f in ipairs(list) do seen[f.path] = true end
+            for name, path in pairs(ht) do
+                if not seen[path] then
+                    table.insert(list, { name=name, path=path })
+                    seen[path] = true
+                end
+            end
+            table.sort(list, function(a,b) return a.name:lower() < b.name:lower() end)
+        end
+    end
+    return list
+end
+
 function Details:_BuildCustomPanel(p)
     local s = B.DB:GetSettings()
     local sf, c = CreateScrollPanel(p, DW - 16, 420)
     sf:SetPoint("TOPLEFT", p, "TOPLEFT", 0, 0)
-    c:SetHeight(600)
 
     p._updaters = {}
     local y = -8
+
+    local function ApplyNow()
+        if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
+    end
 
     -- Helper: section header
     local function SectionHdr(label)
         local sep = c:CreateTexture(nil, "ARTWORK")
         sep:SetHeight(1)
-        sep:SetPoint("TOPLEFT", c, "TOPLEFT", 4, y - 16)
+        sep:SetPoint("TOPLEFT",  c, "TOPLEFT",  4, y - 16)
         sep:SetPoint("TOPRIGHT", c, "TOPRIGHT", -4, y - 16)
         sep:SetColorTexture(0.3, 0.5, 0.9, 0.25)
         local hdr = c:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -647,7 +697,7 @@ function Details:_BuildCustomPanel(p)
         if cb.Text then cb.Text:SetText(label) end
         cb:SetScript("OnClick", function(self)
             setter(self:GetChecked())
-            if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
+            ApplyNow()
         end)
         if tooltip then
             cb:SetScript("OnEnter", function(self)
@@ -669,7 +719,6 @@ function Details:_BuildCustomPanel(p)
         local lbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         lbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
         lbl:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, label))
-
         local sl = CreateFrame("Slider", nil, c, "OptionsSliderTemplate")
         sl:SetPoint("TOPLEFT", c, "TOPLEFT", 14, y - 14)
         sl:SetWidth(DW - 80)
@@ -680,126 +729,187 @@ function Details:_BuildCustomPanel(p)
         if sl.High then sl.High:SetText(string.format(fmt, maxV)) end
         if sl.Text then sl.Text:SetText(string.format(fmt, getter())) end
         sl:SetScript("OnValueChanged", function(self, val)
-            -- snap to step
             val = math.floor(val / step + 0.5) * step
             if sl.Text then sl.Text:SetText(string.format(fmt, val)) end
             setter(val)
-            if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
+            ApplyNow()
         end)
         table.insert(p._updaters, function() sl:SetValue(getter()) end)
         y = y - 42
         return sl
     end
 
-    -- Helper: color swatch row (R/G/B sliders)
-    local function ColorPicker(label, getter, setter)
-        local lbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
-        lbl:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, label))
-        local swatch = c:CreateTexture(nil, "OVERLAY")
-        swatch:SetSize(16, 16)
-        swatch:SetPoint("LEFT", lbl, "RIGHT", 8, 0)
-        local col = getter()
-        swatch:SetColorTexture(col.r, col.g, col.b, 1.0)
-        swatch._col = col
-
-        local function UpdateSwatch()
-            local co = getter()
-            swatch:SetColorTexture(co.r, co.g, co.b, 1.0)
-        end
-
-        y = y - 18
-        -- R slider
-        local function makeChannel(ch, chLabel, startY)
-            local cLbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            cLbl:SetPoint("TOPLEFT", c, "TOPLEFT", 20, startY)
-            cLbl:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, chLabel))
-            local sl = CreateFrame("Slider", nil, c, "OptionsSliderTemplate")
-            sl:SetPoint("TOPLEFT", c, "TOPLEFT", 50, startY - 12)
-            sl:SetWidth(DW - 130)
-            sl:SetMinMaxValues(0, 1); sl:SetValueStep(0.05)
-            sl:SetValue(getter()[ch])
-            if sl.Low  then sl.Low:SetText("0")  end
-            if sl.High then sl.High:SetText("1") end
-            if sl.Text then sl.Text:SetText(string.format("%.2f", getter()[ch])) end
-            sl:SetScript("OnValueChanged", function(self, val)
-                val = math.floor(val/0.05+0.5)*0.05
-                local co = getter(); co[ch] = val; setter(co)
-                if sl.Text then sl.Text:SetText(string.format("%.2f", val)) end
-                UpdateSwatch()
-                if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
-            end)
-            table.insert(p._updaters, function() sl:SetValue(getter()[ch]) end)
-            return sl
-        end
-        makeChannel("r", "R", y);       y = y - 30
-        makeChannel("g", "G", y);       y = y - 30
-        makeChannel("b", "B", y);       y = y - 14
-    end
-
-    -- Helper: dropdown (simple button cycle)
+    -- Helper: dropdown (cycle button)
     local function Dropdown(label, options, getter, setter)
         local lbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         lbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
         lbl:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, label))
-
         local btn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
         btn:SetSize(100, 22)
         btn:SetPoint("LEFT", lbl, "RIGHT", 10, 0)
-
-        local function UpdateBtn()
-            btn:SetText(getter())
-        end
+        local function UpdateBtn() btn:SetText(getter()) end
         UpdateBtn()
-
         btn:SetScript("OnClick", function()
-            local cur = getter()
-            local nextOpt = options[1]
+            local cur = getter(); local nextOpt = options[1]
             for i, opt in ipairs(options) do
                 if opt == cur then nextOpt = options[(i % #options) + 1]; break end
             end
-            setter(nextOpt)
-            UpdateBtn()
-            if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
+            setter(nextOpt); UpdateBtn(); ApplyNow()
         end)
         table.insert(p._updaters, function() UpdateBtn() end)
         y = y - 28
     end
 
-    -- ============================================================
-    --  SECTION 1: Ultra Minimal
-    -- ============================================================
-    SectionHdr("Ultra Minimal Mode")
-    local umCB = Checkbox(
-        "Ultra Minimal  (transparent bg, no title, no XP bar, no level)",
-        "Hides the overlay background, border, title, XP bar and level label.\nKeeps the jump counter, streak badge and +1 animation.",
-        function() return s.ultraMinimal end,
-        function(v) s.ultraMinimal = v end)
-    y = y - 4
+    -- Helper: color palette (16 swatches, 8 per row)
+    local function ColorPalette(label, getter, setter)
+        local lbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
+        lbl:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, label))
+        y = y - 22
+
+        local SW, GAP, COLS = 24, 4, 8
+        local swatches = {}
+
+        local function GetCurHex()
+            local col = getter()
+            return RGBToHex(col.r, col.g, col.b):upper()
+        end
+        local function UpdateSelection()
+            local cur = GetCurHex()
+            for _, sw in ipairs(swatches) do
+                sw:SetBackdropBorderColor(sw._hex == cur and 1 or 0.15,
+                                          sw._hex == cur and 1 or 0.15,
+                                          sw._hex == cur and 1 or 0.15, 1)
+            end
+        end
+
+        for i, hex in ipairs(PALETTE_COLORS) do
+            local cr, cg, cb_val = HexToRGB(hex)
+            local col_idx = i - 1
+            local row_i   = math.floor(col_idx / COLS)
+            local col_i   = col_idx % COLS
+            local sw = CreateFrame("Button", nil, c, "BackdropTemplate")
+            sw:SetSize(SW, SW)
+            sw:SetPoint("TOPLEFT", c, "TOPLEFT",
+                8  + col_i * (SW + GAP),
+                y  - row_i * (SW + GAP))
+            sw:SetBackdrop({
+                bgFile   = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 4,
+                insets   = { left=1, right=1, top=1, bottom=1 },
+            })
+            sw:SetBackdropColor(cr, cg, cb_val, 1)
+            sw:SetBackdropBorderColor(0.15, 0.15, 0.15, 1)
+            sw._hex = hex:upper()
+            sw:SetScript("OnClick", function()
+                setter({ r=cr, g=cg, b=cb_val })
+                UpdateSelection()
+                ApplyNow()
+            end)
+            sw:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("#"..hex, cr, cg, cb_val)
+                GameTooltip:Show()
+            end)
+            sw:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            table.insert(swatches, sw)
+        end
+
+        local numRows = math.ceil(#PALETTE_COLORS / COLS)
+        y = y - numRows * (SW + GAP) - 6
+        table.insert(p._updaters, function() UpdateSelection() end)
+        UpdateSelection()
+    end
+
+    -- Helper: font picker (cycle through WoW defaults + LibSharedMedia if loaded)
+    local function FontPicker(label)
+        local fonts     = BuildFontList()
+        local curIdx    = 1
+        local curPath   = s.overlayFont or "Fonts\\FRIZQT__.TTF"
+        for i, f in ipairs(fonts) do
+            if f.path == curPath then curIdx = i; break end
+        end
+
+        local lbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
+        lbl:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, label))
+
+        local nameLbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        nameLbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y - 18)
+        nameLbl:SetTextColor(1, 1, 1)
+
+        local prevBtn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
+        prevBtn:SetSize(26, 22)
+        prevBtn:SetPoint("LEFT", nameLbl, "RIGHT", 8, 0)
+        prevBtn:SetText("<")
+
+        local nextBtn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
+        nextBtn:SetSize(26, 22)
+        nextBtn:SetPoint("LEFT", prevBtn, "RIGHT", 2, 0)
+        nextBtn:SetText(">")
+
+        local preview = c:CreateFontString(nil, "OVERLAY")
+        preview:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y - 40)
+        preview:SetTextColor(1, 1, 1)
+        preview:SetText("0  1  2  3  JUMPS  Exp")
+
+        local function UpdateFont()
+            local f = fonts[curIdx]
+            nameLbl:SetText(f.name)
+            preview:SetFont(f.path, 14, "OUTLINE")
+            s.overlayFont = f.path
+            ApplyNow()
+        end
+        UpdateFont()
+
+        prevBtn:SetScript("OnClick", function()
+            curIdx = ((curIdx - 2) % #fonts) + 1
+            UpdateFont()
+        end)
+        nextBtn:SetScript("OnClick", function()
+            curIdx = (curIdx % #fonts) + 1
+            UpdateFont()
+        end)
+
+        table.insert(p._updaters, function()
+            local path = s.overlayFont or "Fonts\\FRIZQT__.TTF"
+            curIdx = 1
+            for i, f in ipairs(fonts) do
+                if f.path == path then curIdx = i; break end
+            end
+            UpdateFont()
+        end)
+        y = y - 58
+    end
 
     -- ============================================================
-    --  SECTION 2: Overlay elements
+    --  SECTION 1: Overlay
     -- ============================================================
-    SectionHdr("Overlay Elements")
-    Checkbox("Show title  (\"BOUNCY\" label)",        nil,
+    SectionHdr("Overlay")
+    Checkbox("Transparent background",
+        "Hides the backdrop panel and border, keeping only text elements.",
+        function() return s.ultraMinimal end,
+        function(v) s.ultraMinimal = v end)
+    Checkbox("Show title  (\"BOUNCY\" label)", nil,
         function() return s.showTitle     end,
         function(v) s.showTitle = v        end)
-    Checkbox("Show \"JUMPS\" sub-label",               nil,
+    Checkbox("Show \"JUMPS\" sub-label", nil,
         function() return s.showJumpsLabel end,
         function(v) s.showJumpsLabel = v   end)
-    Checkbox("Show level  (Lv.X)",                   nil,
+    Checkbox("Show level  (Lv.X)", nil,
         function() return s.showLevel      end,
         function(v) s.showLevel = v         end)
-    Checkbox("Show XP bar",                          nil,
+    Checkbox("Show XP bar", nil,
         function() return s.showXPBar      end,
         function(v) s.showXPBar = v         end)
-    Checkbox("Show streak badge",                    nil,
+    Checkbox("Show streak badge", nil,
         function() return s.showStreak     end,
         function(v) s.showStreak = v        end)
     y = y - 4
 
     -- ============================================================
-    --  SECTION 3: Appearance
+    --  SECTION 2: Appearance
     -- ============================================================
     SectionHdr("Appearance")
 
@@ -807,64 +917,53 @@ function Details:_BuildCustomPanel(p)
         function() return s.overlayFontSize or 26 end,
         function(v) s.overlayFontSize = v end,
         "%.0f px")
-
     Slider("Overlay opacity", 0.2, 1.0, 0.05,
         function() return s.overlayAlpha or 0.95 end,
         function(v) s.overlayAlpha = v end,
-        "%.0f%%")  -- we'll format as percent below
-
+        "%.2f")
     Slider("Overlay scale", 0.5, 2.0, 0.05,
         function() return s.overlayScale or 1.0 end,
         function(v) s.overlayScale = v end,
         "%.2fx")
+    y = y - 4
 
-    ColorPicker("Jump counter color",
+    FontPicker("Font")
+    y = y - 4
+
+    ColorPalette("Jump counter color",
         function() return s.jumpTextColor or {r=1,g=1,b=1} end,
         function(v) s.jumpTextColor = v end)
 
     -- ============================================================
-    --  SECTION 4: Animations
+    --  SECTION 3: Animations
     -- ============================================================
     SectionHdr("Animations")
 
-    Checkbox("Squish animation on jump",             nil,
+    Checkbox("Squish counter on jump", nil,
         function() return s.squishEnabled ~= false end,
         function(v) s.squishEnabled = v end)
-    Checkbox("Show +1 animation",                    nil,
+    Checkbox("Show +Exp animation", nil,
         function() return s.showPlusOne    end,
         function(v) s.showPlusOne = v       end)
-
-    Slider("+1 text size", 10, 22, 1,
-        function() return s.plusOneSize or 13 end,
+    Slider("+Exp text size", 10, 26, 1,
+        function() return s.plusOneSize or 16 end,
         function(v) s.plusOneSize = v end,
         "%.0f px")
-
-    Dropdown("+1 direction", { "auto", "up", "down" },
+    Dropdown("+Exp direction", { "auto", "up", "down" },
         function() return s.plusOneDirection or "auto" end,
         function(v) s.plusOneDirection = v end)
     y = y - 4
 
     -- ============================================================
-    --  SECTION 5: Streak
-    -- ============================================================
-    SectionHdr("Streak")
-
-    Slider("Streak badge threshold", 1, 10, 1,
-        function() return s.streakThreshold or 3 end,
-        function(v) s.streakThreshold = v end,
-        "%.0f jumps")
-    y = y - 4
-
-    -- ============================================================
-    --  SECTION 6: Data
+    --  SECTION 4: Data
     -- ============================================================
     SectionHdr("Data")
 
-    local lockCB = Checkbox("Lock overlay position",  nil,
+    Checkbox("Lock overlay position", nil,
         function() return s.overlayLocked  end,
         function(v) s.overlayLocked = v     end)
-
     y = y - 8
+
     local defaultsBtn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
     defaultsBtn:SetSize(180, 24)
     defaultsBtn:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
@@ -872,7 +971,7 @@ function Details:_BuildCustomPanel(p)
     defaultsBtn:SetScript("OnClick", function()
         B.DB:ResetSettings()
         for _, fn in ipairs(p._updaters) do fn() end
-        if B.Overlay then B.Overlay:ApplySettings(); B.Overlay:Refresh() end
+        ApplyNow()
         print(string.format("|cffA0E4FFBouncy|r  Settings reset to defaults."))
     end)
     y = y - 32
