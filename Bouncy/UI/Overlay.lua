@@ -200,7 +200,13 @@ function Overlay:ApplySettings()
     self.xpBar:ClearAllPoints()
     self.xpBar:SetPoint("BOTTOM", f, "BOTTOM", 0, 4 + yOffset)
     self.lvlText:ClearAllPoints()
-    self.lvlText:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -6, 9 + yOffset)
+    local _, fy = f:GetCenter()
+    local isTopHalf = fy and fy > (UIParent:GetHeight() * 0.55)
+    if isTopHalf then
+        self.lvlText:SetPoint("TOP", self.xpBar, "BOTTOM", 0, -2)
+    else
+        self.lvlText:SetPoint("BOTTOM", self.xpBar, "TOP", 0, 2)
+    end
 
     -- Jump counter font, size + color
     local fontSize = s.overlayFontSize or 26
@@ -339,6 +345,7 @@ local OVERLAY_FADE_DUR = 1.2   -- seconds for fade-out
 
 function Overlay:OnJump(data)
     local s = B.DB:GetSettings()
+    self:ApplySettings()
 
     -- Auto-show overlay, restart hide timer
     if s.overlayVisible then
@@ -377,7 +384,8 @@ function Overlay:OnJump(data)
         local col = isCombo and "FFD700" or "FFFFFF"
         local _, fy = self.frame:GetCenter()
         local goDown = fy and fy > (UIParent:GetHeight() * 0.55)
-        SpawnFloating(self.jumpNum, label, col, s.plusOneSize or 16, isCombo, s.plusOneOffsetX or -54, 2, goDown)
+        local xpFontSize = math.max(8, math.floor((s.plusOneSize or 16) * 0.6 + 0.5))
+        SpawnFloating(self.jumpNum, label, col, xpFontSize, isCombo, s.plusOneOffsetX or -54, 2, goDown)
     end
 
     self.badge:Hide()
