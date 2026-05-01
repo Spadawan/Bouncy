@@ -54,6 +54,36 @@ local function PlayCreatureEvolveAnim(p)
     p._evolveAnim:Play()
 end
 
+local function PlayCreaturePopup(p, text, color)
+    if not p.popupText then return end
+    p.popupText:SetText(text or "")
+    if color then p.popupText:SetTextColor(color[1], color[2], color[3]) end
+    p.popupText:SetAlpha(1)
+    if p._popupAnim then p._popupAnim:Stop(); p._popupAnim:Play() end
+end
+
+local function SpawnCreatureParticles(p, evolve)
+    if not p.frame or not p.artwork then return end
+    for i = 1, (evolve and 20 or 14) do
+        local tex = p.frame:CreateTexture(nil, "OVERLAY")
+        tex:SetTexture(evolve and "Interface\\Cooldown\\star4" or "Interface\\Cooldown\\star2")
+        tex:SetBlendMode("ADD")
+        tex:SetSize(math.random(8, 22), math.random(8, 22))
+        tex:SetPoint("CENTER", p.artwork, "CENTER", math.random(-24, 24), math.random(-18, 18))
+        tex:SetAlpha(0)
+        local ag = tex:CreateAnimationGroup()
+        local fi = ag:CreateAnimation("Alpha")
+        fi:SetFromAlpha(0); fi:SetToAlpha(0.9); fi:SetDuration(0.1); fi:SetOrder(1)
+        local tr = ag:CreateAnimation("Translation")
+        tr:SetOffset(math.random(-55, 55), evolve and math.random(30, 90) or -math.random(20, 65))
+        tr:SetDuration(evolve and 1.0 or 0.7); tr:SetOrder(1)
+        local fo = ag:CreateAnimation("Alpha")
+        fo:SetFromAlpha(0.9); fo:SetToAlpha(0); fo:SetDuration(evolve and 1.0 or 0.8); fo:SetOrder(2)
+        ag:SetScript("OnFinished", function() tex:Hide(); tex:SetTexture(nil) end)
+        ag:Play()
+    end
+end
+
 -------------------------------------------------------------------------------
 -- Helpers
 -------------------------------------------------------------------------------
@@ -330,14 +360,20 @@ function Details:_BuildStatsPanel(p)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
             PlayCreatureEvolveAnim(p)
+            SpawnCreatureParticles(p, true)
+            PlayCreaturePopup(p, "Level up!", {0.4, 1.0, 0.3})
+            if PlaySound then PlaySound(SOUNDKIT and SOUNDKIT.UI_PLAYER_LEVEL_UP or "LEVELUP") end
         else
             local feedAmount = 100
-            if B.Leveling:CanEvolve(prog) then
-                return
-            elseif (prog.xp or 0) >= feedAmount then
+            if (prog.xp or 0) >= feedAmount then
                 prog.xp = prog.xp - feedAmount
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
                 PlayCreatureFeedAnim(p)
+                SpawnCreatureParticles(p, false)
+                PlayCreaturePopup(p, "+100 EXP", {0.4, 1.0, 0.3})
+                if PlaySound then PlaySound(SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or 856) end
+            else
+                PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
             end
         end
         Details:Refresh()
@@ -358,6 +394,19 @@ function Details:_BuildStatsPanel(p)
         bx = bx + 76
         table.insert(p.typeButtons, btn)
     end
+
+    local popupText = MakeFont(p, 12, "OUTLINE")
+    popupText:SetPoint("CENTER", artwork, "CENTER", 0, 12)
+    popupText:SetAlpha(0)
+    p.popupText = popupText
+    local pag = popupText:CreateAnimationGroup()
+    local hold = pag:CreateAnimation("Alpha")
+    hold:SetFromAlpha(1); hold:SetToAlpha(1); hold:SetDuration(0.25); hold:SetOrder(1)
+    local fade = pag:CreateAnimation("Alpha")
+    fade:SetFromAlpha(1); fade:SetToAlpha(0); fade:SetDuration(0.8); fade:SetOrder(2)
+    local rise = pag:CreateAnimation("Translation")
+    rise:SetOffset(0, 22); rise:SetDuration(1.05); rise:SetOrder(1)
+    p._popupAnim = pag
 end
 
 function Details:_RefreshStats(p)
