@@ -11,6 +11,7 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("CHAT_MSG_ADDON")
 
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
@@ -24,6 +25,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         B.DB:EnsureChar()
 
         B.Tracker:Init()
+        if B.Community then B.Community:Init() end
         B.Overlay:Init()
         B.Details:Init()
         B.Config:Init()
@@ -31,6 +33,14 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         print(string.format(
             "|cff%sBouncy|r v%s loaded.  |cff%s/bouncy help|r for commands.",
             B.COLOR.TITLE, B.VERSION, B.COLOR.LEVEL_UP))
+
+        if B.Tracker and B.Community and B.Tracker.RegisterCallback then
+            B.Tracker:RegisterCallback(function(event)
+                if event == "JUMP" then
+                    B.Community:Broadcast(false)
+                end
+            end)
+        end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
         -- Refresh overlay after loading screens
@@ -138,3 +148,10 @@ SlashCmdList["BOUNCY"] = function(msg)
             B.COLOR.TITLE, cmd, B.COLOR.LEVEL_UP))
     end
 end
+        if B.Community then B.Community:Broadcast(true) end
+
+    elseif event == "CHAT_MSG_ADDON" then
+        local prefix, message, channel, sender = arg1, ...
+        if B.Community then
+            B.Community:OnAddonMessage(prefix, message, channel, sender)
+        end

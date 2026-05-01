@@ -9,6 +9,7 @@ Core\Namespace.lua
 Core\Database.lua
 Core\Tracker.lua
 Core\Leveling.lua
+Core\Community.lua
 UI\Overlay.lua
 UI\Details.lua
 UI\Config.lua
