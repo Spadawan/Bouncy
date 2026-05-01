@@ -384,18 +384,6 @@ function Details:_BuildStatsPanel(p)
         return btn
     end
 
-    p.addXPBtn = MakeSmallButton("+25 XP", 70, function()
-        local prog = B.DB:AddXP(25)
-        Details:Refresh()
-    end)
-    p.addXPBtn:SetPoint("BOTTOM", p, "BOTTOM", -48, 18)
-
-    p.addBigXPBtn = MakeSmallButton("+25000 XP", 90, function()
-        local prog = B.DB:AddXP(25000)
-        Details:Refresh()
-    end)
-    p.addBigXPBtn:SetPoint("RIGHT", p.addXPBtn, "LEFT", -8, 0)
-
     p.evolveBtn = MakeSmallButton("Feed", 90, function()
         local prog = B.DB:GetProgression()
         if B.Leveling:CanEvolve(prog) then
@@ -422,7 +410,7 @@ function Details:_BuildStatsPanel(p)
         end
         Details:Refresh()
     end)
-    p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 12, 0)
+    p.evolveBtn:SetPoint("TOP", artwork, "BOTTOM", 0, -8)
 
     p.typeHint = MakeFont(p, 10, "")
     p.typeHint:SetPoint("BOTTOM", p.statsSep, "TOP", 0, 34)
@@ -488,6 +476,7 @@ function Details:_RefreshStats(p)
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 48, -38)
         p.eggFrame:Show()
         p.lvlName:SetText("|cffffcc00Creature not selected|r")
+        p.evolveBtn:Hide()
         p.xpBar:Hide()
         p.xpLabel:Hide()
     else
@@ -496,8 +485,10 @@ function Details:_RefreshStats(p)
         p.artwork:ClearAllPoints()
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
         p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\Astral_%02d.tga", stage.art))
-        p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s",
-            B.COLOR.LEVEL_UP, creatureLvl, stage.label))
+        local bonusPct = math.floor(((prog.level or 1) * 1))
+        p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Bonus XP|r",
+            B.COLOR.LEVEL_UP, creatureLvl, stage.label, bonusPct))
+        p.evolveBtn:Show()
         p.xpBar:SetValue(frac)
         p.xpLabel:SetText(string.format("|cff%s%s|r / |cff%s%s|r creature XP",
             B.COLOR.XP, B.FormatNum(prog.creatureXP or 0), B.COLOR.DIM, B.FormatNum(reqXP)))
