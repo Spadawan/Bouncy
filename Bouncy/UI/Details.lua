@@ -520,12 +520,20 @@ function Details:_RefreshStats(p)
     local playerLevelData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
     local _, pCur, pNext = B.Leveling:GetProgress(prog.xp or 0)
     local playerFrac = 1
+    local playerNeed = 0
+    local playerInto = 0
     if pNext then
-        local need = math.max(1, (pNext.threshold - pCur.threshold))
-        playerFrac = math.min(1, ((prog.xp or 0) - pCur.threshold) / need)
+        playerNeed = math.max(1, (pNext.threshold - pCur.threshold))
+        playerInto = math.max(0, (prog.xp or 0) - pCur.threshold)
+        playerFrac = math.min(1, playerInto / playerNeed)
     end
     p.playerXPBar:SetValue(playerFrac)
-    p.playerXPLabel:SetText(string.format("|cff88AAFFPlayer XP reserve:|r %s", B.FormatNum(prog.xp or 0)))
+    if pNext then
+        p.playerXPLabel:SetText(string.format("|cff88AAFF%s|r / |cff%s%s|r XP",
+            B.FormatNum(playerInto), B.COLOR.DIM, B.FormatNum(playerNeed)))
+    else
+        p.playerXPLabel:SetText(string.format("|cff%sMAX LEVEL|r", B.COLOR.LEVEL_UP))
+    end
     p.playerLvlLabel:SetText(string.format("|cff88AAFFPlayer Level:|r %d - %s",
         playerLevelData.level or 1, playerLevelData.name or ""))
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",

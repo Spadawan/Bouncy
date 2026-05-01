@@ -68,7 +68,8 @@ function Leveling:GetCreatureStage(level)
 end
 
 function Leveling:GetCreatureXPRequirement(level)
-    return 50 + ((level - 1) * 25)
+    local base = 50 + ((level - 1) * 25)
+    return math.floor(base * 1.4 + 0.5)
 end
 
 function Leveling:GetCreatureBonusPercent(level)
