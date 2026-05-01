@@ -27,19 +27,19 @@ end
 -------------------------------------------------------------------------------
 -- Squish animation — applied to the jumpNumFrame wrapper
 -------------------------------------------------------------------------------
-local function AnimSquish(frame)
-    if not frame._squishAG then
-        local ag = frame:CreateAnimationGroup()
+local function AnimSquish(target)
+    if not target._squishAG then
+        local ag = target:CreateAnimationGroup()
         local s1 = ag:CreateAnimation("Scale")
-        s1:SetOrigin("BOTTOM",0,0); s1:SetScale(1,0.76); s1:SetDuration(0.06); s1:SetOrder(1)
+        s1:SetOrigin("CENTER",0,0); s1:SetScale(1,0.76); s1:SetDuration(0.06); s1:SetOrder(1)
         local s2 = ag:CreateAnimation("Scale")
-        s2:SetOrigin("BOTTOM",0,0); s2:SetScale(1,1.14); s2:SetDuration(0.07); s2:SetOrder(2)
+        s2:SetOrigin("CENTER",0,0); s2:SetScale(1,1.14); s2:SetDuration(0.07); s2:SetOrder(2)
         local s3 = ag:CreateAnimation("Scale")
-        s3:SetOrigin("BOTTOM",0,0); s3:SetScale(1,1.0);  s3:SetDuration(0.06); s3:SetOrder(3)
-        frame._squishAG = ag
+        s3:SetOrigin("CENTER",0,0); s3:SetScale(1,1.0);  s3:SetDuration(0.06); s3:SetOrder(3)
+        target._squishAG = ag
     end
-    if frame._squishAG:IsPlaying() then frame._squishAG:Stop() end
-    frame._squishAG:Play()
+    if target._squishAG:IsPlaying() then target._squishAG:Stop() end
+    target._squishAG:Play()
 end
 
 -------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ end
 -------------------------------------------------------------------------------
 local plusPool = {}
 
-local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo, offsetX, offsetY)
+local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo, offsetX, offsetY, goDown)
     local p
     for _, f in ipairs(plusPool) do
         if not f:IsShown() then p = f; break end
@@ -66,27 +66,19 @@ local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo, of
         table.insert(plusPool, p)
     end
 
-    -- Safe center: fall back to screen center if frame isn't laid out yet
-    local cx, cy = anchorFrame:GetCenter()
-    if not cx or cx == 0 then
-        cx = UIParent:GetWidth()  / 2
-        cy = UIParent:GetHeight() / 2
-    end
-
     p.fs:SetFont(GetFontPath(), fontSize or 16, "THICKOUTLINE")
     p.fs:SetText(string.format("|cff%s%s|r", hexColor or "FFFFFF", label))
+    local baseX, baseY = (offsetX or 0), (offsetY or 0)
     p:ClearAllPoints()
-    p:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx + (offsetX or 0), cy + (offsetY or 0))
+    p:SetPoint("CENTER", anchorFrame, "CENTER", baseX, baseY)
     p:SetAlpha(1)
     p:SetScale(isCombo and 0.75 or 1.0)
     p:Show()
 
-    local startX  = cx + (offsetX or 0)
-    local startY  = cy + (offsetY or 0)
     local elapsed = 0
-    -- combo: diagonal up-right;  normal: near-vertical rise
-    local DX  = isCombo and 40 or 8
-    local DY  = isCombo and 46 or 55
+    local sign = goDown and -1 or 1
+    local DX  = isCombo and 32 or 8
+    local DY  = sign * (isCombo and 42 or 55)
     local DUR = isCombo and 1.5 or 1.3
 
     p:SetScript("OnUpdate", function(self, dt)
@@ -112,9 +104,7 @@ local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo, of
         self:SetScale(sc)
 
         self:ClearAllPoints()
-        self:SetPoint("CENTER", UIParent, "BOTTOMLEFT",
-            startX + DX * ease,
-            startY + DY * ease)
+        self:SetPoint("CENTER", anchorFrame, "CENTER", baseX + DX * ease, baseY + DY * ease)
         self:SetAlpha(t < 0.5 and 1.0 or (1.0 - (t - 0.5) / 0.5))
     end)
 end
@@ -206,13 +196,20 @@ function Overlay:ApplySettings()
     local showXPAndLevel = (s.showXPBarAndLevel ~= false)
     self.lvlText:SetShown(showXPAndLevel)
     self.xpBar:SetShown(showXPAndLevel)
+    local yOffset = s.xpBarOffsetY or 0
     self.xpBar:ClearAllPoints()
-    self.xpBar:SetPoint("BOTTOM", f, "BOTTOM", 0, 4 + (s.xpBarOffsetY or 0))
+    self.xpBar:SetPoint("BOTTOM", f, "BOTTOM", 0, 4 + yOffset)
+    self.lvlText:ClearAllPoints()
+    self.lvlText:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -6, 9 + yOffset)
 
     -- Jump counter font, size + color
     local fontSize = s.overlayFontSize or 26
     local fontPath = s.overlayFont or "Fonts\\FRIZQT__.TTF"
-    self.jumpNum:SetFont(fontPath, fontSize, "OUTLINE")
+    local jumpFlags = s.jumpTextOutline and "OUTLINE" or ""
+    self.jumpNum:SetFont(fontPath, fontSize, jumpFlags)
+    self.titleText:SetFont(fontPath, 8, "OUTLINE")
+    self.jumpLbl:SetFont(fontPath, 7, "")
+    self.lvlText:SetFont(fontPath, 9, "OUTLINE")
     local tc = s.jumpTextColor or { r=1, g=1, b=1 }
     self.jumpNum:SetTextColor(tc.r, tc.g, tc.b)
 
@@ -364,7 +361,7 @@ function Overlay:OnJump(data)
     end
 
     if s.squishEnabled ~= false then
-        AnimSquish(self.jumpNumFrame)
+        AnimSquish(self.jumpNum)
     end
 
     if s.showPlusOne then
@@ -373,7 +370,9 @@ function Overlay:OnJump(data)
             and string.format("+%d Exp (x%.1f)", data.xpGained, data.mult)
             or  string.format("+%d Exp", data.xpGained)
         local col = isCombo and "FFD700" or "FFFFFF"
-        SpawnFloating(self.jumpNum, label, col, s.plusOneSize or 16, isCombo, s.plusOneOffsetX or -54, 2)
+        local _, fy = self.frame:GetCenter()
+        local goDown = fy and fy > (UIParent:GetHeight() * 0.55)
+        SpawnFloating(self.jumpNum, label, col, s.plusOneSize or 16, isCombo, s.plusOneOffsetX or -54, 2, goDown)
     end
 
     if s.showStreak then

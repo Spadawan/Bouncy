@@ -30,6 +30,7 @@ local DEFAULTS = {
         -- Appearance
         overlayFontSize  = 26,      -- main jump counter font size (18-40)
         jumpTextColor    = { r=1.0, g=1.0, b=1.0 },  -- jump counter color
+        jumpTextOutline  = true,    -- black outline on jump counter text
         -- Animations
         plusOneDirection = "auto",  -- "auto" | "up" | "down"
         plusOneSize      = 16,      -- font size of +Exp text (10-22)

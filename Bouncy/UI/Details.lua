@@ -192,6 +192,9 @@ function Details:ShowPanel(idx)
         p:SetShown(i == idx)
         self.tabs[i]:SetActive(i == idx)
     end
+    if B.Overlay and B.Overlay.frame and activePanel == PANEL_CUSTOM then
+        B.Overlay.frame:Show()
+    end
     self:Refresh()
 end
 
@@ -860,25 +863,22 @@ function Details:_BuildCustomPanel(p)
                 info.value = fonts[i].path
                 UIDropDownMenu_AddButton(info, level)
             end
-            if stopIdx < #fonts then
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = "More..."
-                info.hasArrow = true
-                info.menuList = {}
-                UIDropDownMenu_AddButton(info, level)
-            end
         end)
 
         table.insert(p._updaters, function()
             local path = s.overlayFont or "Fonts\\FRIZQT__.TTF"
+            local found = false
             for i, f in ipairs(fonts) do
                 if f.path == path then
                     UIDropDownMenu_SetSelectedValue(dd, path)
                     UIDropDownMenu_SetText(dd, f.name)
+                    found = true
                     break
                 end
             end
+            if not found then UIDropDownMenu_SetText(dd, "Select font") end
         end)
+        p._updaters[#p._updaters]()
         y = y - 54
     end
 
@@ -913,6 +913,9 @@ function Details:_BuildCustomPanel(p)
         function() return s.overlayFontSize or 26 end,
         function(v) s.overlayFontSize = v end,
         "%.0f px")
+    Checkbox("Black outline on jump counter", nil,
+        function() return s.jumpTextOutline ~= false end,
+        function(v) s.jumpTextOutline = v end)
     Slider("Overlay opacity", 0.2, 1.0, 0.05,
         function() return s.overlayAlpha or 0.95 end,
         function(v) s.overlayAlpha = v end,
@@ -949,9 +952,6 @@ function Details:_BuildCustomPanel(p)
         function() return s.plusOneSize or 16 end,
         function(v) s.plusOneSize = v end,
         "%.0f px")
-    Dropdown("+Exp direction", { "auto", "up", "down" },
-        function() return s.plusOneDirection or "auto" end,
-        function(v) s.plusOneDirection = v end)
     y = y - 4
 
     -- ============================================================
