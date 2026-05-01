@@ -74,7 +74,9 @@ end
 function Leveling:GetCreatureBonusPercent(level)
     local stage = self:GetCreatureStage(level or 1)
     local evolutions = math.max(0, (stage.art or 1) - 1)
-    return math.min(15, evolutions * 3)
+    local perLevel = math.max(0, level or 1) * 1
+    local evoBonus = evolutions * 3
+    return perLevel + evoBonus
 end
 
 function Leveling:CanEvolve(prog)

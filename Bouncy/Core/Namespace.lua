@@ -46,6 +46,8 @@ local function BuildPlayerLevels()
     local out = {}
     local threshold = 0
     local title = PLAYER_TITLE_BY_MILESTONE[1]
+    local baseNeed = 100
+    local growth = math.pow(10000 / baseNeed, 1 / 98) -- level 99->100 ~= 10k
     for lvl = 1, 100 do
         if PLAYER_TITLE_BY_MILESTONE[lvl] then title = PLAYER_TITLE_BY_MILESTONE[lvl] end
         local artIdx = math.min(8, math.max(1, math.floor((lvl - 1) / 12) + 1))
@@ -55,7 +57,8 @@ local function BuildPlayerLevels()
             threshold = threshold,
             artwork = string.format("Interface\\AddOns\\Bouncy\\media\\bunny%d.tga", artIdx),
         }
-        threshold = threshold + (80 + math.floor(lvl * 22))
+        local need = math.floor(baseNeed * (growth ^ (lvl - 1)) + 0.5)
+        threshold = threshold + need
     end
     return out
 end
