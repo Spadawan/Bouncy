@@ -68,8 +68,21 @@ function Leveling:GetCreatureStage(level)
 end
 
 function Leveling:GetCreatureXPRequirement(level)
-    local base = 50 + ((level - 1) * 25)
-    return math.floor(base * 1.4 + 0.5)
+    local anchors = {
+        [1] = 200, -- lvl 1 -> 2
+        [2] = 300, -- lvl 2 -> 3
+        [3] = 400, -- lvl 3 -> 4
+        [4] = 550, -- lvl 4 -> 5
+    }
+    if anchors[level] then
+        return anchors[level]
+    end
+
+    local req = anchors[4]
+    for _ = 5, level do
+        req = math.floor(req * 1.35 + 0.5)
+    end
+    return req
 end
 
 function Leveling:GetCreatureBonusPercent(level)
