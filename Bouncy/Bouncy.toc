@@ -1,6 +1,7 @@
 ## Interface: 120005, 110002, 11504, 40400, 30403, 20505
-## Title: |cffA0E4FF✦ Bouncy|r
+## Title: |cffA0E4FFBouncy Jump Counter|r
 ## Notes: Counts jumps, streaks and sit-downs. Level up your bunny companion!
+## IconTexture: Interface\Icons\Ability_Rogue_Sprint
 ## Author: Bouncy
 ## Version: 1.0.0
 ## SavedVariables: Bouncy_DB

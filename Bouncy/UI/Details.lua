@@ -372,10 +372,10 @@ function Details:_BuildStatsPanel(p)
     nextTitleLabel:SetPoint("TOPLEFT", streakLabel, "BOTTOMLEFT", 0, -8)
     p.nextTitleLabel = nextTitleLabel
 
-    local sep = HSep(p, -246)
+    local sep = HSep(p, -284)
     p.statsSep = sep
 
-    local statY = -258
+    local statY = -296
     local function StatRow(label, yoff)
         local lbl = MakeFont(p, 11, "")
         lbl:SetPoint("TOPLEFT", p, "TOPLEFT", 20, yoff)
@@ -531,25 +531,21 @@ function Details:_RefreshStats(p)
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",
         B.COLOR.STREAK, char.bestStreak or 0))
 
-    -- Current title
-    local curTitle = B.GetTitle(char.totalJumps)
-    if curTitle then
-        p.titleLine:SetText(string.format("Title: |cff%s%s|r",
-            curTitle.color, curTitle.title))
-    else
-        p.titleLine:SetText(string.format("|cff%sNo title yet|r", B.COLOR.DIM))
-    end
+    -- Current title (level-based only)
+    p.titleLine:SetText(string.format("Title: |cff33FF66%s|r", playerLevelData.name or "First Hop"))
 
-    -- Next title goal
-    local nextTitle = B.GetNextTitle(char.totalJumps)
-    if nextTitle then
-        local remaining = nextTitle.jumps - char.totalJumps
-        p.nextTitleLabel:SetText(string.format(
-            "|cff%sNext: |r|cff%s%s|r |cff%s(%s jumps away)|r",
-            B.COLOR.DIM, nextTitle.color, nextTitle.title,
-            B.COLOR.DIM, B.FormatNum(remaining)))
+    -- Next title goal (level-based only)
+    local nextTitleName = nil
+    for _, lvl in ipairs(B.LEVELS or {}) do
+        if (lvl.level or 1) > (playerLevelData.level or 1) and lvl.name ~= playerLevelData.name then
+            nextTitleName = lvl.name
+            break
+        end
+    end
+    if nextTitleName then
+        p.nextTitleLabel:SetText(string.format("|cff%sNext: |r|cff33FF66%s|r", B.COLOR.DIM, nextTitleName))
     else
-        p.nextTitleLabel:SetText(string.format("|cff%sAll titles unlocked!|r", B.COLOR.LEVEL_UP))
+        p.nextTitleLabel:SetText(string.format("|cff%sTop title reached!|r", B.COLOR.LEVEL_UP))
     end
 
     local sessionJumps = (B.Tracker and B.Tracker.GetSessionJumps and B.Tracker:GetSessionJumps()) or 0
