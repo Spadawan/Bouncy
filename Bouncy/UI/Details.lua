@@ -60,6 +60,11 @@ local function PlayCreaturePopup(p, text, color)
     if color then p.popupText:SetTextColor(color[1], color[2], color[3]) end
     p.popupText:SetAlpha(1)
     if p._popupAnim then p._popupAnim:Stop(); p._popupAnim:Play() end
+    C_Timer.After(1.2, function()
+        if p and p.popupText then
+            p.popupText:SetAlpha(0)
+        end
+    end)
 end
 
 local function SpawnCreatureParticles(p, evolve)
@@ -424,7 +429,7 @@ function Details:_RefreshStats(p)
     local frac = math.min(1, (prog.creatureXP or 0) / math.max(1, reqXP))
     local creatureLocked = not prog.creatureType
     if creatureLocked then
-        p.artwork:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        p.artwork:SetTexture("Interface\\Icons\\INV_Egg_02")
         p.lvlName:SetText("|cffffcc00Creature not selected|r")
         p.xpBar:Hide()
         p.xpLabel:Hide()
@@ -483,12 +488,13 @@ function Details:_RefreshStats(p)
     r[4]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jpm))
     r[5]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jph))
 
-    local shouldChooseType = (creatureLvl >= 2 and not prog.creatureType)
+    local playerLevel = (playerLevelData and playerLevelData.level) or 1
+    local shouldChooseType = (playerLevel >= 2 and not prog.creatureType)
     p.typeHint:SetShown((prog.creatureType ~= nil) or shouldChooseType)
     if shouldChooseType then
-        p.typeHint:SetText("|cffffcc00Select a creature type to unlock evolution stats.|r")
+        p.typeHint:SetText("|cffffcc00Select a creature type (unlocked at player level 2).|r")
     elseif creatureLocked then
-        p.typeHint:SetText("|cffff8800Reach level 2 to choose your creature type.|r")
+        p.typeHint:SetText("|cffff8800Reach player level 2 to choose your creature type.|r")
     elseif prog.creatureType then
         p.typeHint:SetText(string.format("|cff%sType selected:|r %s", B.COLOR.DIM, prog.creatureType))
     end
