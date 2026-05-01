@@ -86,6 +86,7 @@ local function OnJump()
     local mult, multColor = GetStreakMultiplier(streak)
     local baseXP = math.floor(2 * mult)
     local prog = B.DB:GetProgression()
+    local oldLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
     local creatureLevel = prog.level or 1
     local bonusPct = (B.Leveling and B.Leveling.GetCreatureBonusPercent and B.Leveling:GetCreatureBonusPercent(creatureLevel)) or 0
     local bonusExact = (baseXP * (bonusPct * 0.01)) + (prog.bonusXPFraction or 0)
@@ -93,10 +94,14 @@ local function OnJump()
     prog.bonusXPFraction = bonusExact - bonusXP
     local xpGained = baseXP + bonusXP
     B.DB:AddXP(xpGained)
+    local newLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
 
     B.DB:RecordJump(zone)
     local newLevel  = nil
-    local newTitle  = B.Leveling:CheckTitleUnlock(B.DB:GetChar().totalJumps)
+    local newTitle  = nil
+    if (newLvlData.level or 1) > (oldLvlData.level or 1) then
+        newTitle = { title = newLvlData.name or "New Title", color = "33FF66" }
+    end
 
     Fire("JUMP", {
         zone      = zone,
