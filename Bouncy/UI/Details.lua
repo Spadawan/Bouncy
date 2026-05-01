@@ -1010,4 +1010,4 @@ function Details:Show()
     self:Refresh()
 end
 function Details:Hide()   self.frame:Hide() end
-function Details:Toggle() if self.frame:IsShown() then self:Hide() else self:Show() end end
+function Details:Toggle() if self.frame then if self.frame:IsShown() then self:Hide() else self:Show() end end end

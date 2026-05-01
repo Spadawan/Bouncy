@@ -327,7 +327,7 @@ function Overlay:Refresh()
     local lvlData = B.Leveling:GetLevelForXP(prog.xp)
     self.lvlText:SetText("Lv." .. lvlData.level)
 
-    self.xpBar:SetValue(B.Leveling:GetProgress(prog.xp))
+    self.xpBar:SetValue((B.Leveling:GetProgress(prog.xp)))
     self.badge:SetStreak(B.Tracker:GetStreak(), s.streakThreshold)
 end
 
