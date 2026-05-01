@@ -27,19 +27,19 @@ end
 -------------------------------------------------------------------------------
 -- Squish animation — applied to the jumpNumFrame wrapper
 -------------------------------------------------------------------------------
-local function AnimSquish(frame)
-    if not frame._squishAG then
-        local ag = frame:CreateAnimationGroup()
+local function AnimSquish(target)
+    if not target._squishAG then
+        local ag = target:CreateAnimationGroup()
         local s1 = ag:CreateAnimation("Scale")
-        s1:SetOrigin("BOTTOM",0,0); s1:SetScale(1,0.76); s1:SetDuration(0.06); s1:SetOrder(1)
+        s1:SetOrigin("CENTER",0,0); s1:SetScale(1,0.76); s1:SetDuration(0.06); s1:SetOrder(1)
         local s2 = ag:CreateAnimation("Scale")
-        s2:SetOrigin("BOTTOM",0,0); s2:SetScale(1,1.14); s2:SetDuration(0.07); s2:SetOrder(2)
+        s2:SetOrigin("CENTER",0,0); s2:SetScale(1,1.14); s2:SetDuration(0.07); s2:SetOrder(2)
         local s3 = ag:CreateAnimation("Scale")
-        s3:SetOrigin("BOTTOM",0,0); s3:SetScale(1,1.0);  s3:SetDuration(0.06); s3:SetOrder(3)
-        frame._squishAG = ag
+        s3:SetOrigin("CENTER",0,0); s3:SetScale(1,1.0);  s3:SetDuration(0.06); s3:SetOrder(3)
+        target._squishAG = ag
     end
-    if frame._squishAG:IsPlaying() then frame._squishAG:Stop() end
-    frame._squishAG:Play()
+    if target._squishAG:IsPlaying() then target._squishAG:Stop() end
+    target._squishAG:Play()
 end
 
 -------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ end
 -------------------------------------------------------------------------------
 local plusPool = {}
 
-local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo)
+local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo, offsetX, offsetY, goDown)
     local p
     for _, f in ipairs(plusPool) do
         if not f:IsShown() then p = f; break end
@@ -66,27 +66,19 @@ local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo)
         table.insert(plusPool, p)
     end
 
-    -- Safe center: fall back to screen center if frame isn't laid out yet
-    local cx, cy = anchorFrame:GetCenter()
-    if not cx or cx == 0 then
-        cx = UIParent:GetWidth()  / 2
-        cy = UIParent:GetHeight() / 2
-    end
-
     p.fs:SetFont(GetFontPath(), fontSize or 16, "THICKOUTLINE")
     p.fs:SetText(string.format("|cff%s%s|r", hexColor or "FFFFFF", label))
+    local baseX, baseY = (offsetX or 0), (offsetY or 0)
     p:ClearAllPoints()
-    p:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx, cy)
+    p:SetPoint("CENTER", anchorFrame, "CENTER", baseX, baseY)
     p:SetAlpha(1)
     p:SetScale(isCombo and 0.75 or 1.0)
     p:Show()
 
-    local startX  = cx
-    local startY  = cy
     local elapsed = 0
-    -- combo: diagonal up-right;  normal: near-vertical rise
-    local DX  = isCombo and 40 or 8
-    local DY  = isCombo and 46 or 55
+    local sign = goDown and -1 or 1
+    local DX  = isCombo and -32 or -8
+    local DY  = sign * (isCombo and 21 or 27.5)
     local DUR = isCombo and 1.5 or 1.3
 
     p:SetScript("OnUpdate", function(self, dt)
@@ -112,9 +104,7 @@ local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo)
         self:SetScale(sc)
 
         self:ClearAllPoints()
-        self:SetPoint("CENTER", UIParent, "BOTTOMLEFT",
-            startX + DX * ease,
-            startY + DY * ease)
+        self:SetPoint("CENTER", anchorFrame, "CENTER", baseX + DX * ease, baseY + DY * ease)
         self:SetAlpha(t < 0.5 and 1.0 or (1.0 - (t - 0.5) / 0.5))
     end)
 end
@@ -169,7 +159,7 @@ end
 -------------------------------------------------------------------------------
 local function CreateXPBar(parent, w)
     local bar = CreateFrame("StatusBar", nil, parent)
-    bar:SetSize(w - 12, 4)
+    bar:SetSize((w - 12) * 0.70, 6)
     bar:SetPoint("BOTTOM", parent, "BOTTOM", 0, 4)
     bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     bar:SetStatusBarColor(0.32, 0.80, 0.32)
@@ -203,13 +193,29 @@ function Overlay:ApplySettings()
     -- All elements controlled individually regardless of ultraMinimal
     self.titleText:SetShown(s.showTitle)
     self.jumpLbl:SetShown(s.showJumpsLabel)
-    self.lvlText:SetShown(s.showLevel)
-    self.xpBar:SetShown(s.showXPBar)
+    local showXPAndLevel = (s.showXPBarAndLevel ~= false)
+    self.lvlText:SetShown(showXPAndLevel)
+    self.xpBar:SetShown(showXPAndLevel)
+    local yOffset = s.xpBarOffsetY or 0
+    self.xpBar:ClearAllPoints()
+    self.xpBar:SetPoint("BOTTOM", f, "BOTTOM", 0, 4 + yOffset)
+    self.lvlText:ClearAllPoints()
+    local _, fy = f:GetCenter()
+    local isTopHalf = fy and fy > (UIParent:GetHeight() * 0.55)
+    if isTopHalf then
+        self.lvlText:SetPoint("TOP", self.xpBar, "BOTTOM", 0, -2)
+    else
+        self.lvlText:SetPoint("BOTTOM", self.xpBar, "TOP", 0, 2)
+    end
 
     -- Jump counter font, size + color
     local fontSize = s.overlayFontSize or 26
     local fontPath = s.overlayFont or "Fonts\\FRIZQT__.TTF"
-    self.jumpNum:SetFont(fontPath, fontSize, "OUTLINE")
+    local jumpFlags = s.jumpTextOutline and "OUTLINE" or ""
+    self.jumpNum:SetFont(fontPath, fontSize, jumpFlags)
+    self.titleText:SetFont(fontPath, 8, "OUTLINE")
+    self.jumpLbl:SetFont(fontPath, 7, "")
+    self.lvlText:SetFont(fontPath, 9, "OUTLINE")
     local tc = s.jumpTextColor or { r=1, g=1, b=1 }
     self.jumpNum:SetTextColor(tc.r, tc.g, tc.b)
 
@@ -328,37 +334,47 @@ function Overlay:Refresh()
     self.lvlText:SetText("Lv." .. lvlData.level)
 
     self.xpBar:SetValue((B.Leveling:GetProgress(prog.xp)))
-    self.badge:SetStreak(B.Tracker:GetStreak(), s.streakThreshold)
+    self.badge:Hide()
 end
 
 -------------------------------------------------------------------------------
 -- Events
 -------------------------------------------------------------------------------
-local OVERLAY_SHOW_DUR = 5.0   -- seconds overlay stays visible after a jump
+local OVERLAY_SHOW_DUR = 4.0   -- seconds overlay stays visible after a jump
 local OVERLAY_FADE_DUR = 1.2   -- seconds for fade-out
 
 function Overlay:OnJump(data)
     local s = B.DB:GetSettings()
+    self:ApplySettings()
 
     -- Auto-show overlay, restart hide timer
     if s.overlayVisible then
         local targetAlpha = s.overlayAlpha or 0.95
+        if self._fadeTimer then self._fadeTimer:Cancel(); self._fadeTimer = nil end
+        UIFrameFadeRemoveFrame(self.frame)
         self.frame:Show()
-        UIFrameFadeIn(self.frame, 0.15, self.frame:GetAlpha(), targetAlpha)
+        self.frame:SetAlpha(targetAlpha)
+        self._timerToken = (self._timerToken or 0) + 1
+        local token = self._timerToken
         if self._hideTimer then self._hideTimer:Cancel() end
         self._hideTimer = C_Timer.After(OVERLAY_SHOW_DUR, function()
+            if token ~= self._timerToken then return end
+            if B.Details and B.Details:IsCustomPanelVisible() then
+                self._hideTimer = nil
+                return
+            end
             UIFrameFadeOut(self.frame, OVERLAY_FADE_DUR, self.frame:GetAlpha(), 0)
-            C_Timer.After(OVERLAY_FADE_DUR, function()
+            self._fadeTimer = C_Timer.After(OVERLAY_FADE_DUR, function()
+                if token ~= self._timerToken then return end
                 self.frame:Hide()
                 self.frame:SetAlpha(targetAlpha)
                 self._hideTimer = nil
+                self._fadeTimer = nil
             end)
         end)
     end
 
-    if s.squishEnabled ~= false then
-        AnimSquish(self.jumpNumFrame)
-    end
+    -- Squish animation disabled (unreliable on some clients/fontstrings)
 
     if s.showPlusOne then
         local isCombo = data.mult > 1
@@ -366,14 +382,15 @@ function Overlay:OnJump(data)
             and string.format("+%d Exp (x%.1f)", data.xpGained, data.mult)
             or  string.format("+%d Exp", data.xpGained)
         local col = isCombo and "FFD700" or "FFFFFF"
-        SpawnFloating(self.frame, label, col, s.plusOneSize or 16, isCombo)
+        local _, fy = self.frame:GetCenter()
+        local goDown = fy and fy > (UIParent:GetHeight() * 0.55)
+        local xpFontSize = math.max(8, math.floor((s.plusOneSize or 16) * 0.6 + 0.5))
+        SpawnFloating(self.jumpNum, label, col, xpFontSize, isCombo, s.plusOneOffsetX or -54, 2, goDown)
     end
 
-    if s.showStreak then
-        self.badge:SetStreak(data.streak, s.streakThreshold)
-    end
+    self.badge:Hide()
 
-    if s.showXPBar then
+    if s.showXPBarAndLevel ~= false then
         self.xpBar:Flash()
     end
 
@@ -383,8 +400,7 @@ function Overlay:OnJump(data)
 end
 
 function Overlay:OnStreakBreak()
-    local s = B.DB:GetSettings()
-    self.badge:SetStreak(0, s.streakThreshold)
+    self.badge:Hide()
     self:Refresh()
 end
 
