@@ -34,29 +34,33 @@ end
 -- Bunny evolution stages (XP-based)
 -- artwork = placeholder — replace with your own TGA/BLP per level
 -------------------------------------------------------------------------------
-B.LEVELS = {
-    { level = 1,  name = "First Hop",        threshold = 0,      artwork = "Interface\\AddOns\\Bouncy\\media\\bunny1.tga" },
-    { level = 5,  name = "Light Feet",       threshold = 100,    artwork = "Interface\\AddOns\\Bouncy\\media\\bunny2.tga" },
-    { level = 10, name = "Springstep",       threshold = 500,    artwork = "Interface\\AddOns\\Bouncy\\media\\bunny3.tga" },
-    { level = 15, name = "Airborne",         threshold = 1500,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny4.tga" },
-    { level = 20, name = "High Hopper",      threshold = 4000,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny5.tga" },
-    { level = 25, name = "Bound Runner",     threshold = 10000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny6.tga" },
-    { level = 30, name = "Leap Adept",       threshold = 25000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny7.tga" },
-    { level = 35, name = "Momentum Keeper",  threshold = 60000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 40, name = "Sky Strider",      threshold = 100000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 45, name = "Vault Expert",     threshold = 150000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 50, name = "Jump Veteran",     threshold = 210000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 55, name = "Arc Master",       threshold = 280000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 60, name = "Drift Walker",     threshold = 360000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 65, name = "Elevation Knight", threshold = 450000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 70, name = "Gravity Challenger", threshold = 550000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 75, name = "Cloud Chaser",     threshold = 660000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 80, name = "Horizon Leaper",   threshold = 780000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 85, name = "Void Jumper",      threshold = 910000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 90, name = "Apex Bounder",     threshold = 1050000,artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 95, name = "Zenith Strider",   threshold = 1200000,artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
-    { level = 100,name = "Lord of the Leap", threshold = 1360000,artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+local PLAYER_TITLE_BY_MILESTONE = {
+    [1]="First Hop",[5]="Light Feet",[10]="Springstep",[15]="Airborne",[20]="High Hopper",
+    [25]="Bound Runner",[30]="Leap Adept",[35]="Momentum Keeper",[40]="Sky Strider",
+    [45]="Vault Expert",[50]="Jump Veteran",[55]="Arc Master",[60]="Drift Walker",
+    [65]="Elevation Knight",[70]="Gravity Challenger",[75]="Cloud Chaser",[80]="Horizon Leaper",
+    [85]="Void Jumper",[90]="Apex Bounder",[95]="Zenith Strider",[100]="Lord of the Leap",
 }
+
+local function BuildPlayerLevels()
+    local out = {}
+    local threshold = 0
+    local title = PLAYER_TITLE_BY_MILESTONE[1]
+    for lvl = 1, 100 do
+        if PLAYER_TITLE_BY_MILESTONE[lvl] then title = PLAYER_TITLE_BY_MILESTONE[lvl] end
+        local artIdx = math.min(8, math.max(1, math.floor((lvl - 1) / 12) + 1))
+        out[#out + 1] = {
+            level = lvl,
+            name = title,
+            threshold = threshold,
+            artwork = string.format("Interface\\AddOns\\Bouncy\\media\\bunny%d.tga", artIdx),
+        }
+        threshold = threshold + (80 + math.floor(lvl * 22))
+    end
+    return out
+end
+
+B.LEVELS = BuildPlayerLevels()
 
 B.CREATURE_LEVELS = {
     Astral = BuildCreatureLevelSet("Astral"),
