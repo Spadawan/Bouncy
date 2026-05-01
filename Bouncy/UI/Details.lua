@@ -438,6 +438,7 @@ function Details:_BuildStatsPanel(p)
     local bx = 0
     for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
         local btn = MakeSmallButton(creatureType, 72, function()
+            if creatureType ~= "Astral" and creatureType ~= "Fire" then return end
             B.DB:SetCreatureType(creatureType)
             Details:Refresh()
         end)
@@ -506,7 +507,8 @@ function Details:_RefreshStats(p)
         p.artwork:SetSize(128, 128)
         p.artwork:ClearAllPoints()
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
-        p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\Astral_%02d.tga", stage.art))
+        local texturePrefix = ((prog.creatureType == "Fire") and "Fire") or "Astral"
+        p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", texturePrefix, stage.art))
         local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1)
         p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Bonus XP|r",
             B.COLOR.LEVEL_UP, creatureLvl, stage.label, bonusPct))
@@ -579,6 +581,14 @@ function Details:_RefreshStats(p)
     end
     for _, btn in ipairs(p.typeButtons or {}) do
         btn:SetShown(shouldChooseType)
+        local label = btn:GetText()
+        local enabled = (label == "Astral" or label == "Fire")
+        btn:SetEnabled(enabled)
+        if enabled then
+            btn:GetFontString():SetTextColor(1, 1, 1)
+        else
+            btn:GetFontString():SetTextColor(0.45, 0.45, 0.45)
+        end
     end
     if prog.creatureType then
         p.evolveBtn:SetText(B.Leveling:CanEvolve(prog) and "Evolve" or "Feed")

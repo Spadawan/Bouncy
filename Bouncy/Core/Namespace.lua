@@ -73,6 +73,7 @@ B.LEVELS = BuildPlayerLevels()
 
 B.CREATURE_LEVELS = {
     Astral = BuildCreatureLevelSet("Astral"),
+    Fire = BuildCreatureLevelSet("Fire"),
 }
 
 -------------------------------------------------------------------------------
