@@ -21,12 +21,48 @@ local function split(msg, sep)
     return out
 end
 
+local function getChannelOrder()
+    if type(GetChannelList) ~= "function" then return {} end
+    local raw = { GetChannelList() }
+    local out = {}
+    for i = 1, #raw, 3 do
+        local id = tonumber(raw[i]); local name = tostring(raw[i + 1] or "")
+        if id and id > 0 and name ~= "" then out[#out + 1] = { id = id, name = name } end
+    end
+    return out
+end
+
+function Community:_reorderChannelLast(maxPasses)
+    if type(C_ChatInfo) ~= "table" or type(C_ChatInfo.SwapChatChannelsByChannelIndex) ~= "function" then return end
+    for _ = 1, (maxPasses or 1) do
+        local order = getChannelOrder()
+        local idx
+        for i, c in ipairs(order) do if c.name == CHANNEL_NAME then idx = i break end end
+        if not idx or idx >= #order then return end
+        C_ChatInfo.SwapChatChannelsByChannelIndex(order[idx].id, order[idx + 1].id)
+    end
+end
+
+function Community:_scheduleReorderChannelLast()
+    if not C_Timer or not C_Timer.After then self:_reorderChannelLast(8); return end
+    for _, d in ipairs({ 0.2, 1.0, 2.0, 4.0 }) do
+        C_Timer.After(d, function() Community:_reorderChannelLast(8) end)
+    end
+end
+
 function Community:Init()
     if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
         C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
     end
     if type(JoinChannelByName) == "function" then
         JoinChannelByName(CHANNEL_NAME)
+        self:_scheduleReorderChannelLast()
+        if type(ChatFrame_RemoveChannel) == "function" then
+            for i = 1, (NUM_CHAT_WINDOWS or 0) do
+                local frame = _G["ChatFrame" .. i]
+                if frame then ChatFrame_RemoveChannel(frame, CHANNEL_NAME) end
+            end
+        end
     end
 end
 
@@ -70,4 +106,3 @@ function Community:OnAddonMessage(prefix, message, _, sender)
     lb[key].bestStreak = tonumber(parts[5]) or 0
     lb[key].class = parts[6] or lb[key].class
 end
-

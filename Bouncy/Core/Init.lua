@@ -47,6 +47,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         if B.Overlay and B.Overlay.frame then
             B.Overlay:Refresh()
         end
+        if B.Community then B.Community:Broadcast(true) end
+
+    elseif event == "CHAT_MSG_ADDON" then
+        local prefix, message, channel, sender = arg1, ...
+        if B.Community then
+            B.Community:OnAddonMessage(prefix, message, channel, sender)
+        end
 
     elseif event == "PLAYER_LOGOUT" then
         if B.Overlay and B.Overlay.frame then
@@ -147,11 +154,3 @@ SlashCmdList["BOUNCY"] = function(msg)
         print(string.format("|cff%sBouncy|r Unknown command : \"%s\". Type |cff%s/bouncy help|r.",
             B.COLOR.TITLE, cmd, B.COLOR.LEVEL_UP))
     end
-end
-        if B.Community then B.Community:Broadcast(true) end
-
-    elseif event == "CHAT_MSG_ADDON" then
-        local prefix, message, channel, sender = arg1, ...
-        if B.Community then
-            B.Community:OnAddonMessage(prefix, message, channel, sender)
-        end

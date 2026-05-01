@@ -34,7 +34,7 @@ local DEFAULTS = {
         plusOneDirection = "auto",  -- "auto" | "up" | "down"
         plusOneSize      = 16,      -- font size of +Exp text (10-22)
         plusOneOffsetX   = -54,     -- +Exp anchor offset relative to jump number
-        xpBarOffsetY     = 0,       -- vertical offset for XP bar
+        xpBarOffsetY     = 12,      -- vertical offset for XP bar
         squishEnabled    = true,    -- squish animation on jump
         -- Streak badge
         streakThreshold  = 3,       -- minimum streak to show badge (1-10)
