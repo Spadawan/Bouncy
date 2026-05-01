@@ -75,6 +75,22 @@ function Leveling:CanEvolve(prog)
     return (prog.creatureXP or 0) >= req
 end
 
+function Leveling:AdvanceCreatureNonEvolutionLevels(prog)
+    local changed = false
+    while true do
+        local level = prog.level or 1
+        local req = self:GetCreatureXPRequirement(level)
+        if (prog.creatureXP or 0) < req then break end
+        local stage = self:GetCreatureStage(level)
+        local nextStage = self:GetCreatureStage(level + 1)
+        if nextStage.art ~= stage.art then break end
+        prog.creatureXP = (prog.creatureXP or 0) - req
+        prog.level = level + 1
+        changed = true
+    end
+    return changed
+end
+
 -- Evaluate XP progression, fire level-up callbacks if needed.
 -- Also checks for new title unlocks based on total jumps.
 function Leveling:Evaluate(prog)

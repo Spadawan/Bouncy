@@ -59,6 +59,8 @@ local function PlayCreaturePopup(p, text, color)
     p.popupText:SetText(text or "")
     if color then p.popupText:SetTextColor(color[1], color[2], color[3]) end
     p.popupText:SetAlpha(1)
+    p.popupText:ClearAllPoints()
+    p.popupText:SetPoint("CENTER", p.artwork, "CENTER", 0, 12)
     if p._popupAnim then p._popupAnim:Stop(); p._popupAnim:Play() end
     C_Timer.After(1.2, function()
         if p and p.popupText then
@@ -360,7 +362,7 @@ function Details:_BuildStatsPanel(p)
         local prog = B.DB:AddXP(25)
         Details:Refresh()
     end)
-    p.addXPBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 20, statY - 84)
+    p.addXPBtn:SetPoint("BOTTOM", p, "BOTTOM", -48, 18)
 
     p.evolveBtn = MakeSmallButton("Feed", 90, function()
         local prog = B.DB:GetProgression()
@@ -377,9 +379,10 @@ function Details:_BuildStatsPanel(p)
             if (prog.xp or 0) >= feedAmount then
                 prog.xp = prog.xp - feedAmount
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
+                local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
                 PlayCreatureFeedAnim(p)
                 SpawnCreatureParticles(p, false)
-                PlayCreaturePopup(p, "+100 EXP", {0.4, 1.0, 0.3})
+                PlayCreaturePopup(p, autoLevel and "Level up!" or "+100 EXP", {0.4, 1.0, 0.3})
                 if PlaySound then PlaySound(SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or 856) end
             else
                 PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
@@ -387,7 +390,7 @@ function Details:_BuildStatsPanel(p)
         end
         Details:Refresh()
     end)
-    p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 8, 0)
+    p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 12, 0)
 
     p.typeHint = MakeFont(p, 10, "")
     p.typeHint:SetPoint("TOPLEFT", p.addXPBtn, "BOTTOMLEFT", 0, -8)
@@ -415,6 +418,11 @@ function Details:_BuildStatsPanel(p)
     fade:SetFromAlpha(1); fade:SetToAlpha(0); fade:SetDuration(0.8); fade:SetOrder(2)
     local rise = pag:CreateAnimation("Translation")
     rise:SetOffset(0, 22); rise:SetDuration(1.05); rise:SetOrder(1)
+    pag:SetScript("OnFinished", function()
+        popupText:SetAlpha(0)
+        popupText:ClearAllPoints()
+        popupText:SetPoint("CENTER", artwork, "CENTER", 0, 12)
+    end)
     p._popupAnim = pag
 end
 
