@@ -20,6 +20,42 @@ local PANEL_CUSTOM   = 4
 local activePanel    = PANEL_STATS
 local activeCharKey  = nil   -- which char is selected in zones panel
 
+local function PlayCreatureFeedAnim(p)
+    if not p._feedAnim then
+        local ag = p.artwork:CreateAnimationGroup()
+        local s1 = ag:CreateAnimation("Scale")
+        s1:SetOrigin("CENTER", 0, 0); s1:SetScale(0.20, 0.20); s1:SetDuration(0.10); s1:SetOrder(1)
+        local t1 = ag:CreateAnimation("Translation")
+        t1:SetOffset(6, 0); t1:SetDuration(0.08); t1:SetOrder(2)
+        local t2 = ag:CreateAnimation("Translation")
+        t2:SetOffset(-12, 0); t2:SetDuration(0.08); t2:SetOrder(3)
+        local t3 = ag:CreateAnimation("Translation")
+        t3:SetOffset(6, 0); t3:SetDuration(0.08); t3:SetOrder(4)
+        local s2 = ag:CreateAnimation("Scale")
+        s2:SetOrigin("CENTER", 0, 0); s2:SetScale(-0.20, -0.20); s2:SetDuration(0.12); s2:SetOrder(5)
+        p._feedAnim = ag
+    end
+    p._feedAnim:Stop()
+    p._feedAnim:Play()
+end
+
+local function PlayCreatureEvolveAnim(p)
+    if not p._evolveAnim then
+        local ag = p.artwork:CreateAnimationGroup()
+        local a1 = ag:CreateAnimation("Alpha")
+        a1:SetFromAlpha(1); a1:SetToAlpha(0.2); a1:SetDuration(0.12); a1:SetOrder(1)
+        local s1 = ag:CreateAnimation("Scale")
+        s1:SetOrigin("CENTER", 0, 0); s1:SetScale(0.35, 0.35); s1:SetDuration(0.18); s1:SetOrder(2)
+        local a2 = ag:CreateAnimation("Alpha")
+        a2:SetFromAlpha(0.2); a2:SetToAlpha(1); a2:SetDuration(0.12); a2:SetOrder(3)
+        local s2 = ag:CreateAnimation("Scale")
+        s2:SetOrigin("CENTER", 0, 0); s2:SetScale(-0.35, -0.35); s2:SetDuration(0.16); s2:SetOrder(4)
+        p._evolveAnim = ag
+    end
+    p._evolveAnim:Stop()
+    p._evolveAnim:Play()
+end
+
 -------------------------------------------------------------------------------
 -- Helpers
 -------------------------------------------------------------------------------
@@ -256,8 +292,10 @@ function Details:_BuildStatsPanel(p)
     local _, r1 = StatRow("Jumps - Total",  statY)
     local _, r2 = StatRow("Jumps - Today",  statY - 22)
     local _, r3 = StatRow("Jumps - Week",   statY - 44)
+    local _, r4 = StatRow("Jumps / Minute", statY - 66)
+    local _, r5 = StatRow("Jumps / Hour",   statY - 88)
 
-    p._r = { r1, r2, r3 }
+    p._r = { r1, r2, r3, r4, r5 }
 
     local function MakeSmallButton(label, width, onClick)
         local btn = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
@@ -269,20 +307,26 @@ function Details:_BuildStatsPanel(p)
 
     p.addXPBtn = MakeSmallButton("+25 XP", 70, function()
         local prog = B.DB:AddXP(25)
-        B.Leveling:Evaluate(prog)
         Details:Refresh()
     end)
     p.addXPBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 20, statY - 84)
 
-    p.evolveBtn = MakeSmallButton("Evolve +1", 90, function()
+    p.evolveBtn = MakeSmallButton("Feed", 90, function()
         local prog = B.DB:GetProgression()
-        local cur = B.Leveling:GetLevelForXP(prog.xp)
-        local nxt = B.Leveling:GetNextLevel(cur.level)
-        if nxt then
-            prog.xp = nxt.threshold
-            B.Leveling:Evaluate(prog)
-            Details:Refresh()
+        if B.Leveling:CanEvolve(prog) then
+            local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
+            prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
+            prog.level = (prog.level or 1) + 1
+            PlayCreatureEvolveAnim(p)
+        else
+            local feedAmount = 100
+            if (prog.xp or 0) >= feedAmount then
+                prog.xp = prog.xp - feedAmount
+                prog.creatureXP = (prog.creatureXP or 0) + feedAmount
+                PlayCreatureFeedAnim(p)
+            end
         end
+        Details:Refresh()
     end)
     p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 8, 0)
 
@@ -307,8 +351,10 @@ function Details:_RefreshStats(p)
     if not char then return end
     local prog = B.DB:GetProgression()
 
-    local lvlData = B.Leveling:GetLevelForXP(prog.xp)
-    local frac    = B.Leveling:GetProgress(prog.xp)
+    local creatureLvl = prog.level or 1
+    local stage = B.Leveling:GetCreatureStage(creatureLvl)
+    local reqXP = B.Leveling:GetCreatureXPRequirement(creatureLvl)
+    local frac = math.min(1, (prog.creatureXP or 0) / math.max(1, reqXP))
     local creatureLocked = not prog.creatureType
     if creatureLocked then
         p.artwork:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
@@ -316,11 +362,12 @@ function Details:_RefreshStats(p)
         p.xpBar:Hide()
         p.xpLabel:Hide()
     else
-        p.artwork:SetTexture(lvlData.artwork)
+        p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\Astral_%02d.tga", stage.art))
         p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s",
-            B.COLOR.LEVEL_UP, lvlData.level, lvlData.name))
+            B.COLOR.LEVEL_UP, creatureLvl, stage.label))
         p.xpBar:SetValue(frac)
-        p.xpLabel:SetText(B.Leveling:FormatXP(prog.xp))
+        p.xpLabel:SetText(string.format("|cff%s%s|r / |cff%s%s|r creature XP",
+            B.COLOR.XP, B.FormatNum(prog.creatureXP or 0), B.COLOR.DIM, B.FormatNum(reqXP)))
         p.xpBar:Show()
         p.xpLabel:Show()
     end
@@ -348,12 +395,17 @@ function Details:_RefreshStats(p)
         p.nextTitleLabel:SetText(string.format("|cff%sAll titles unlocked!|r", B.COLOR.LEVEL_UP))
     end
 
+    local totalTime = math.max(1, GetTime())
+    local jpm = (char.totalJumps or 0) / (totalTime / 60)
+    local jph = (char.totalJumps or 0) / (totalTime / 3600)
     local r = p._r
     r[1]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.totalJumps)))
     r[2]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.daily.jumps or 0)))
     r[3]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.weekly.jumps or 0)))
+    r[4]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jpm))
+    r[5]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jph))
 
-    local shouldChooseType = (lvlData.level >= 2 and not prog.creatureType)
+    local shouldChooseType = (creatureLvl >= 2 and not prog.creatureType)
     p.typeHint:SetShown((prog.creatureType ~= nil) or shouldChooseType)
     if shouldChooseType then
         p.typeHint:SetText("|cffffcc00Select a creature type to unlock evolution stats.|r")
@@ -364,6 +416,9 @@ function Details:_RefreshStats(p)
     end
     for _, btn in ipairs(p.typeButtons or {}) do
         btn:SetShown(shouldChooseType)
+    end
+    if prog.creatureType then
+        p.evolveBtn:SetText(B.Leveling:CanEvolve(prog) and "Evolve" or "Feed")
     end
 end
 

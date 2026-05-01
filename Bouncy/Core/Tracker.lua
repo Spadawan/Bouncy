@@ -86,7 +86,7 @@ local function OnJump()
     local prog = B.DB:AddXP(xpGained)
 
     B.DB:RecordJump(zone)
-    local newLevel  = B.Leveling:Evaluate(prog)
+    local newLevel  = nil
     local newTitle  = B.Leveling:CheckTitleUnlock(B.DB:GetChar().totalJumps)
 
     Fire("JUMP", {

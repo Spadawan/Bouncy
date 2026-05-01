@@ -86,27 +86,22 @@ SlashCmdList["BOUNCY"] = function(msg)
             print(string.format("|cff%sUsage: /bouncy xp <amount>|r", B.COLOR.DIM))
             return
         end
-        local prog = B.DB:AddXP(math.floor(amount))
-        local newLevel = B.Leveling:Evaluate(prog)
+        B.DB:AddXP(math.floor(amount))
         if B.Overlay then B.Overlay:Refresh() end
         if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
         print(string.format("|cff%sBouncy|r Added %d XP.", B.COLOR.TITLE, math.floor(amount)))
-        if newLevel then
-            print(string.format("|cff%sLevel up!|r Level %d - %s", B.COLOR.LEVEL_UP, newLevel.level, newLevel.name))
-        end
 
     elseif cmd == "evolve" then
         local prog = B.DB:GetProgression()
-        local cur = B.Leveling:GetLevelForXP(prog.xp)
-        local nxt = B.Leveling:GetNextLevel(cur.level)
-        if nxt then
-            prog.xp = nxt.threshold
-            B.Leveling:Evaluate(prog)
+        if B.Leveling:CanEvolve(prog) then
+            local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
+            prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
+            prog.level = (prog.level or 1) + 1
             if B.Overlay then B.Overlay:Refresh() end
             if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
-            print(string.format("|cff%sBouncy|r Forced evolution to level %d.", B.COLOR.TITLE, nxt.level))
+            print(string.format("|cff%sBouncy|r Evolved to level %d.", B.COLOR.TITLE, prog.level))
         else
-            print(string.format("|cff%sBouncy|r Already at max level.", B.COLOR.TITLE))
+            print(string.format("|cff%sBouncy|r Not ready to evolve yet.", B.COLOR.TITLE))
         end
 
     elseif cmd == "type" then

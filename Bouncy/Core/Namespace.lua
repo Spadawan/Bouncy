@@ -96,7 +96,9 @@ B.STREAK_MULTIPLIERS = {
     { min = 1,   max = 2,   mult = 1.0, color = "ffffff" },
     { min = 3,   max = 5,   mult = 1.5, color = "00ff88" },
     { min = 6,   max = 9,   mult = 2.0, color = "ffcc00" },
-    { min = 10,  max = 999, mult = 3.0, color = "ff6600" },
+    { min = 10,  max = 14,  mult = 3.0, color = "ff6600" },
+    { min = 15,  max = 24,  mult = 4.0, color = "ff4477" },
+    { min = 25,  max = 999, mult = 5.0, color = "cc33ff" },
 }
 
 -- Streak window: max seconds between jumps to keep the combo alive

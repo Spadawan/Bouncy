@@ -7,6 +7,15 @@ local B        = _G.Bouncy
 B.Leveling     = {}
 local Leveling = B.Leveling
 
+local EVOLUTION_STAGES = {
+    { min = 1,  max = 5,  art = 1, label = "Astral Hatchling" },
+    { min = 6,  max = 15, art = 2, label = "Astral Youngling" },
+    { min = 16, max = 30, art = 3, label = "Astral Adept" },
+    { min = 31, max = 45, art = 4, label = "Astral Ascendant" },
+    { min = 46, max = 65, art = 5, label = "Astral Elder" },
+    { min = 66, max = 999,art = 6, label = "Astral Mythic" },
+}
+
 function Leveling:GetLevelsForProgression(prog)
     local creatureType = prog and prog.creatureType
     if creatureType and B.CREATURE_LEVELS and B.CREATURE_LEVELS[creatureType] then
@@ -43,6 +52,27 @@ function Leveling:GetProgress(xp)
     local xpInto  = xp - cur.threshold
     local xpNeeded= next.threshold - cur.threshold
     return math.min(1.0, xpInto / xpNeeded), cur, next
+end
+
+function Leveling:GetCreatureStage(level)
+    for _, s in ipairs(EVOLUTION_STAGES) do
+        if level >= s.min and level <= s.max then return s end
+    end
+    return EVOLUTION_STAGES[#EVOLUTION_STAGES]
+end
+
+function Leveling:GetCreatureXPRequirement(level)
+    return 50 + ((level - 1) * 25)
+end
+
+function Leveling:CanEvolve(prog)
+    local level = prog.level or 1
+    local stage = self:GetCreatureStage(level)
+    local nextLevel = level + 1
+    local nextStage = self:GetCreatureStage(nextLevel)
+    if nextStage.art == stage.art then return false end
+    local req = self:GetCreatureXPRequirement(level)
+    return (prog.creatureXP or 0) >= req
 end
 
 -- Evaluate XP progression, fire level-up callbacks if needed.
