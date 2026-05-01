@@ -16,6 +16,14 @@ local EVOLUTION_STAGES = {
     { min = 66, max = 999,art = 6, label = "Astral Mythic" },
 }
 
+local CREATURE_LABELS = {
+    Astral = { "Astral Hatchling", "Astral Youngling", "Astral Adept", "Astral Ascendant", "Astral Elder", "Astral Mythic" },
+    Fire   = { "Ember Wisp", "Flare Cub", "Blazeling", "Inferno Stalker", "Pyre Guardian", "Solar Phoenix" },
+    Water  = { "Dew Sprite", "Ripple Cub", "Tide Dancer", "Current Keeper", "Abyss Warden", "Ocean Sovereign" },
+    Lunar  = { "Moonlet", "Crescent Prowler", "Nightglow Adept", "Eclipse Hunter", "Starbound Sentinel", "Celestial Oracle" },
+    Electric = { "Spark Pup", "Volt Runner", "Static Strider", "Storm Charger", "Thunder Warden", "Tempest Prime" },
+}
+
 function Leveling:GetLevelsForProgression(prog)
     local creatureType = prog and prog.creatureType
     if creatureType and B.CREATURE_LEVELS and B.CREATURE_LEVELS[creatureType] then
@@ -65,6 +73,12 @@ function Leveling:GetCreatureStage(level)
         if level >= s.min and level <= s.max then return s end
     end
     return EVOLUTION_STAGES[#EVOLUTION_STAGES]
+end
+
+function Leveling:GetCreatureLabel(creatureType, level)
+    local stage = self:GetCreatureStage(level or 1)
+    local labels = CREATURE_LABELS[creatureType or "Astral"] or CREATURE_LABELS.Astral
+    return labels[stage.art] or stage.label or "Companion"
 end
 
 function Leveling:GetCreatureXPRequirement(level)

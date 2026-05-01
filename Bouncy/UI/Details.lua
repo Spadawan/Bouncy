@@ -510,8 +510,9 @@ function Details:_RefreshStats(p)
         local texturePrefix = ((prog.creatureType == "Fire" or prog.creatureType == "Water") and prog.creatureType) or "Astral"
         p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", texturePrefix, stage.art))
         local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1)
+        local creatureLabel = B.Leveling:GetCreatureLabel(prog.creatureType, creatureLvl)
         p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Bonus XP|r",
-            B.COLOR.LEVEL_UP, creatureLvl, stage.label, bonusPct))
+            B.COLOR.LEVEL_UP, creatureLvl, creatureLabel, bonusPct))
         p.evolveBtn:Show()
         p.xpBar:SetValue(frac)
         p.xpLabel:SetText(string.format("|cff%s%s|r / |cff%s%s|r creature XP",
