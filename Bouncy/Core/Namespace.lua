@@ -15,6 +15,7 @@ B.CREATURE_TYPES = {
     "Fire",
     "Water",
     "Lunar",
+    "Electric",
 }
 
 local function BuildCreatureLevelSet(prefix)
@@ -74,6 +75,7 @@ B.LEVELS = BuildPlayerLevels()
 B.CREATURE_LEVELS = {
     Astral = BuildCreatureLevelSet("Astral"),
     Fire = BuildCreatureLevelSet("Fire"),
+    Water = BuildCreatureLevelSet("Water"),
 }
 
 -------------------------------------------------------------------------------
