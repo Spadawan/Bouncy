@@ -279,6 +279,19 @@ function Details:_BuildStatsPanel(p)
     artwork:SetTexture("Interface\\Icons\\Ability_Hunter_BeastCall")
     artwork:SetTexCoord(0.06, 0.94, 0.06, 0.94)
     p.artwork = artwork
+    local eggFrame = CreateFrame("Frame", nil, p, "BackdropTemplate")
+    eggFrame:SetSize(84, 84)
+    eggFrame:SetPoint("CENTER", artwork, "CENTER", 0, 0)
+    eggFrame:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left=3, right=3, top=3, bottom=3 },
+    })
+    eggFrame:SetBackdropColor(0.03, 0.03, 0.08, 0.85)
+    eggFrame:SetBackdropBorderColor(0.5, 0.7, 1.0, 0.75)
+    eggFrame:Hide()
+    p.eggFrame = eggFrame
 
     local lvlName = MakeFont(p, 15, "OUTLINE")
     lvlName:SetPoint("TOPLEFT", artwork, "TOPRIGHT", 18, -6)
@@ -393,7 +406,7 @@ function Details:_BuildStatsPanel(p)
     p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 12, 0)
 
     p.typeHint = MakeFont(p, 10, "")
-    p.typeHint:SetPoint("TOPLEFT", p.addXPBtn, "BOTTOMLEFT", 0, -8)
+    p.typeHint:SetPoint("BOTTOM", p.addXPBtn, "TOP", 44, 54)
 
     p.typeButtons = {}
     local bx = 0
@@ -405,6 +418,12 @@ function Details:_BuildStatsPanel(p)
         btn:SetPoint("TOPLEFT", p.typeHint, "BOTTOMLEFT", bx, -6)
         bx = bx + 76
         table.insert(p.typeButtons, btn)
+    end
+    local totalW = (#(p.typeButtons) * 72) + ((#(p.typeButtons) - 1) * 4)
+    local startX = -math.floor(totalW / 2)
+    for i, btn in ipairs(p.typeButtons) do
+        btn:ClearAllPoints()
+        btn:SetPoint("TOPLEFT", p.typeHint, "BOTTOMLEFT", startX + ((i - 1) * 76), -6)
     end
 
     local popupText = MakeFont(p, 12, "OUTLINE")
@@ -438,10 +457,18 @@ function Details:_RefreshStats(p)
     local creatureLocked = not prog.creatureType
     if creatureLocked then
         p.artwork:SetTexture("Interface\\Icons\\INV_Egg_02")
+        p.artwork:SetSize(64, 64)
+        p.artwork:ClearAllPoints()
+        p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 48, -38)
+        p.eggFrame:Show()
         p.lvlName:SetText("|cffffcc00Creature not selected|r")
         p.xpBar:Hide()
         p.xpLabel:Hide()
     else
+        p.eggFrame:Hide()
+        p.artwork:SetSize(128, 128)
+        p.artwork:ClearAllPoints()
+        p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
         p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\Astral_%02d.tga", stage.art))
         p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s",
             B.COLOR.LEVEL_UP, creatureLvl, stage.label))
