@@ -309,11 +309,21 @@ function Details:_RefreshStats(p)
 
     local lvlData = B.Leveling:GetLevelForXP(prog.xp)
     local frac    = B.Leveling:GetProgress(prog.xp)
-    p.artwork:SetTexture(lvlData.artwork)
-    p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s",
-        B.COLOR.LEVEL_UP, lvlData.level, lvlData.name))
-    p.xpBar:SetValue(frac)
-    p.xpLabel:SetText(B.Leveling:FormatXP(prog.xp))
+    local creatureLocked = not prog.creatureType
+    if creatureLocked then
+        p.artwork:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        p.lvlName:SetText("|cffffcc00Creature not selected|r")
+        p.xpBar:Hide()
+        p.xpLabel:Hide()
+    else
+        p.artwork:SetTexture(lvlData.artwork)
+        p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s",
+            B.COLOR.LEVEL_UP, lvlData.level, lvlData.name))
+        p.xpBar:SetValue(frac)
+        p.xpLabel:SetText(B.Leveling:FormatXP(prog.xp))
+        p.xpBar:Show()
+        p.xpLabel:Show()
+    end
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",
         B.COLOR.STREAK, char.bestStreak or 0))
 
@@ -344,9 +354,11 @@ function Details:_RefreshStats(p)
     r[3]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.weekly.jumps or 0)))
 
     local shouldChooseType = (lvlData.level >= 2 and not prog.creatureType)
-    p.typeHint:SetShown(shouldChooseType or (prog.creatureType ~= nil))
+    p.typeHint:SetShown((prog.creatureType ~= nil) or shouldChooseType)
     if shouldChooseType then
-        p.typeHint:SetText("|cffffcc00Choose your creature type (level 2 unlock):|r")
+        p.typeHint:SetText("|cffffcc00Select a creature type to unlock evolution stats.|r")
+    elseif creatureLocked then
+        p.typeHint:SetText("|cffff8800Reach level 2 to choose your creature type.|r")
     elseif prog.creatureType then
         p.typeHint:SetText(string.format("|cff%sType selected:|r %s", B.COLOR.DIM, prog.creatureType))
     end
