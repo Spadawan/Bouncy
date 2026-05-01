@@ -51,12 +51,14 @@ local function PlayCreatureEvolveAnim(p)
         local oldAg = p._evolveOldFx:CreateAnimationGroup()
         local oldFade = oldAg:CreateAnimation("Alpha")
         oldFade:SetFromAlpha(0.95); oldFade:SetToAlpha(0); oldFade:SetDuration(0.65); oldFade:SetOrder(1)
+        oldAg:SetScript("OnFinished", function() if p._evolveOldFx then p._evolveOldFx:SetAlpha(0) end end)
         p._evolveOldAnim = oldAg
         local newAg = p._evolveNewFx:CreateAnimationGroup()
         local ni = newAg:CreateAnimation("Alpha")
         ni:SetFromAlpha(0); ni:SetToAlpha(1); ni:SetDuration(0.2); ni:SetOrder(1)
         local no = newAg:CreateAnimation("Alpha")
         no:SetFromAlpha(1); no:SetToAlpha(0); no:SetDuration(1.1); no:SetOrder(2)
+        newAg:SetScript("OnFinished", function() if p._evolveNewFx then p._evolveNewFx:SetAlpha(0) end end)
         p._evolveNewAnim = newAg
     end
     p._evolveOldAnim:Stop(); p._evolveNewAnim:Stop()
@@ -96,7 +98,7 @@ local function SpawnCreatureParticles(p, evolve)
         tr:SetDuration(evolve and 1.0 or 0.7); tr:SetOrder(1)
         local fo = ag:CreateAnimation("Alpha")
         fo:SetFromAlpha(0.9); fo:SetToAlpha(0); fo:SetDuration(evolve and 1.0 or 0.8); fo:SetOrder(2)
-        ag:SetScript("OnFinished", function() tex:Hide(); tex:SetTexture(nil) end)
+        ag:SetScript("OnFinished", function() tex:SetAlpha(0); tex:Hide(); tex:SetTexture(nil) end)
         ag:Play()
     end
 end
@@ -397,7 +399,7 @@ function Details:_BuildStatsPanel(p)
             PlayCreatureEvolveAnim(p)
             SpawnCreatureParticles(p, true)
             PlayCreaturePopup(p, "Level up!", {0.4, 1.0, 0.3})
-            if PlaySound then PlaySound(SOUNDKIT and SOUNDKIT.UI_PLAYER_LEVEL_UP or "LEVELUP") end
+            if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\LevelUp.ogg", "SFX") end
         else
             local feedAmount = 100
             if (prog.xp or 0) >= feedAmount then
@@ -407,7 +409,7 @@ function Details:_BuildStatsPanel(p)
                 PlayCreatureFeedAnim(p)
                 SpawnCreatureParticles(p, false)
                 PlayCreaturePopup(p, autoLevel and "Level up!" or "+100 EXP", {0.4, 1.0, 0.3})
-                if PlaySound then PlaySound(SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or 856) end
+                if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\iEating1.ogg", "SFX") end
             else
                 PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
             end
@@ -417,7 +419,7 @@ function Details:_BuildStatsPanel(p)
     p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 12, 0)
 
     p.typeHint = MakeFont(p, 10, "")
-    p.typeHint:SetPoint("BOTTOM", p.statsSep, "TOP", 0, 18)
+    p.typeHint:SetPoint("BOTTOM", p.statsSep, "TOP", 0, 34)
 
     p.typeButtons = {}
     local bx = 0
@@ -426,7 +428,7 @@ function Details:_BuildStatsPanel(p)
             B.DB:SetCreatureType(creatureType)
             Details:Refresh()
         end)
-        btn:SetPoint("TOPLEFT", p.typeHint, "BOTTOMLEFT", bx, -6)
+        btn:SetPoint("BOTTOMLEFT", p.typeHint, "TOPLEFT", bx, 6)
         bx = bx + 76
         table.insert(p.typeButtons, btn)
     end
@@ -434,7 +436,7 @@ function Details:_BuildStatsPanel(p)
     local startX = -math.floor(totalW / 2)
     for i, btn in ipairs(p.typeButtons) do
         btn:ClearAllPoints()
-        btn:SetPoint("TOPLEFT", p.typeHint, "BOTTOMLEFT", startX + ((i - 1) * 76), -6)
+        btn:SetPoint("BOTTOMLEFT", p.typeHint, "TOPLEFT", startX + ((i - 1) * 76), 6)
     end
 
     local popupText = MakeFont(p, 12, "OUTLINE")
