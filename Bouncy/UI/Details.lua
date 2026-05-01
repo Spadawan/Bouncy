@@ -390,6 +390,12 @@ function Details:_BuildStatsPanel(p)
     end)
     p.addXPBtn:SetPoint("BOTTOM", p, "BOTTOM", -48, 18)
 
+    p.addBigXPBtn = MakeSmallButton("+25000 XP", 90, function()
+        local prog = B.DB:AddXP(25000)
+        Details:Refresh()
+    end)
+    p.addBigXPBtn:SetPoint("RIGHT", p.addXPBtn, "LEFT", -8, 0)
+
     p.evolveBtn = MakeSmallButton("Feed", 90, function()
         local prog = B.DB:GetProgression()
         if B.Leveling:CanEvolve(prog) then
@@ -552,7 +558,7 @@ function Details:_RefreshStats(p)
     elseif creatureLocked then
         p.typeHint:SetText("|cffff8800Reach player level 2 to choose your creature type.|r")
     elseif prog.creatureType then
-        p.typeHint:SetText(string.format("|cff%sType selected:|r %s", B.COLOR.DIM, prog.creatureType))
+        p.typeHint:SetText("")
     end
     for _, btn in ipairs(p.typeButtons or {}) do
         btn:SetShown(shouldChooseType)
