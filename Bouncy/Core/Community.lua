@@ -21,6 +21,16 @@ local function split(msg, sep)
     return out
 end
 
+local function normalizeSender(sender)
+    local full = tostring(sender or "")
+    local n, r = string.match(full, "^([^%-]+)%-(.+)$")
+    if n and r then
+        return n, r:gsub("%s+", ""), r:gsub("%s+", "") .. "-" .. n
+    end
+    local realm = (GetRealmName and GetRealmName() or ""):gsub("%s+", "")
+    return full, realm, realm .. "-" .. full
+end
+
 local function getChannelOrder()
     if type(GetChannelList) ~= "function" then return {} end
     local raw = { GetChannelList() }
@@ -96,10 +106,12 @@ function Community:OnAddonMessage(prefix, message, _, sender)
     local parts = split(message, "|")
     if parts[1] ~= "B" then return end
 
-    local senderName = sender or "Unknown"
-    local key = "peer:" .. senderName
+    local senderName, senderRealm, canonical = normalizeSender(sender)
+    local selfCanonical = ((GetRealmName() or ""):gsub("%s+", "")) .. "-" .. (UnitName("player") or "")
+    if canonical == selfCanonical then return end
+    local key = "peer:" .. canonical
     local lb = B.DB:GetLeaderboard()
-    lb[key] = lb[key] or { name = senderName, realm = "", class = "UNKNOWN", jumps = 0 }
+    lb[key] = lb[key] or { name = senderName, realm = senderRealm, class = "UNKNOWN", jumps = 0 }
     lb[key].jumps = tonumber(parts[2]) or 0
     lb[key].level = tonumber(parts[3]) or 1
     lb[key].petLevel = tonumber(parts[4]) or 1

@@ -35,14 +35,27 @@ end
 -- artwork = placeholder — replace with your own TGA/BLP per level
 -------------------------------------------------------------------------------
 B.LEVELS = {
-    { level = 1, name = "Fluffy Newcomer",  threshold = 0,     artwork = "Interface\\AddOns\\Bouncy\\media\\bunny1.tga" },
-    { level = 2, name = "Hoppling",         threshold = 100,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny2.tga" },
-    { level = 3, name = "Agile Leaper",     threshold = 500,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny3.tga" },
-    { level = 4, name = "Acrobat",          threshold = 1500,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny4.tga" },
-    { level = 5, name = "Jump Champion",    threshold = 4000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny5.tga" },
-    { level = 6, name = "Master Bouncer",   threshold = 10000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny6.tga" },
-    { level = 7, name = "Jump Legend",      threshold = 25000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny7.tga" },
-    { level = 8, name = "Bounce God",       threshold = 60000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 1,  name = "First Hop",        threshold = 0,      artwork = "Interface\\AddOns\\Bouncy\\media\\bunny1.tga" },
+    { level = 5,  name = "Light Feet",       threshold = 100,    artwork = "Interface\\AddOns\\Bouncy\\media\\bunny2.tga" },
+    { level = 10, name = "Springstep",       threshold = 500,    artwork = "Interface\\AddOns\\Bouncy\\media\\bunny3.tga" },
+    { level = 15, name = "Airborne",         threshold = 1500,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny4.tga" },
+    { level = 20, name = "High Hopper",      threshold = 4000,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny5.tga" },
+    { level = 25, name = "Bound Runner",     threshold = 10000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny6.tga" },
+    { level = 30, name = "Leap Adept",       threshold = 25000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny7.tga" },
+    { level = 35, name = "Momentum Keeper",  threshold = 60000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 40, name = "Sky Strider",      threshold = 100000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 45, name = "Vault Expert",     threshold = 150000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 50, name = "Jump Veteran",     threshold = 210000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 55, name = "Arc Master",       threshold = 280000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 60, name = "Drift Walker",     threshold = 360000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 65, name = "Elevation Knight", threshold = 450000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 70, name = "Gravity Challenger", threshold = 550000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 75, name = "Cloud Chaser",     threshold = 660000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 80, name = "Horizon Leaper",   threshold = 780000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 85, name = "Void Jumper",      threshold = 910000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 90, name = "Apex Bounder",     threshold = 1050000,artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 95, name = "Zenith Strider",   threshold = 1200000,artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+    { level = 100,name = "Lord of the Leap", threshold = 1360000,artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
 }
 
 B.CREATURE_LEVELS = {

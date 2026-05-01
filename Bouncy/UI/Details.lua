@@ -752,12 +752,21 @@ function Details:_BuildLeaderPanel(p)
 end
 
 function Details:_RefreshLeaders(p)
+    local function JumpTitleForLevel(level)
+        local best = (B.LEVELS[1] and B.LEVELS[1].name) or "First Hop"
+        for _, l in ipairs(B.LEVELS or {}) do
+            if (level or 1) >= (l.level or 1) then best = l.name or best end
+        end
+        return best
+    end
+
     local lb = B.DB:GetLeaderboard()
     local entries = {}
     for key, data in pairs(lb) do
         table.insert(entries, { key=key, name=data.name, realm=data.realm,
                                  class=data.class, jumps=data.jumps or 0, level=data.level or 1,
-                                 petLevel=data.petLevel or 1, bestStreak=data.bestStreak or 0 })
+                                 petLevel=data.petLevel or 1, bestStreak=data.bestStreak or 0,
+                                 jumpTitle=JumpTitleForLevel(data.level or 1) })
     end
     table.sort(entries, function(a,b) return a.jumps > b.jumps end)
 
@@ -855,6 +864,7 @@ function Details:_RefreshLeaders(p)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetText((entry.name or "?") .. " - " .. (entry.realm or ""))
                 GameTooltip:AddLine(string.format("Jump Level: %d", entry.level or 1), 0.4, 0.8, 1.0)
+                GameTooltip:AddLine(string.format("Title: %s", entry.jumpTitle or "First Hop"), 0.7, 0.9, 1.0)
                 GameTooltip:AddLine(string.format("Pet Max Level: %d", entry.petLevel or 1), 0.7, 1.0, 0.7)
                 GameTooltip:AddLine(string.format("Best Streak: %d", entry.bestStreak or 0), 1.0, 0.85, 0.3)
                 GameTooltip:Show()
