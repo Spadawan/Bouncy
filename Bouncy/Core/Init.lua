@@ -57,7 +57,7 @@ SlashCmdList["BOUNCY"] = function(msg)
     local cmd = strtrim(msg or ""):lower()
 
     if cmd == "" then
-        B.Overlay:Toggle()
+        B.Details:Toggle()
 
     elseif cmd == "show" then
         B.Overlay:Show()
@@ -83,7 +83,9 @@ SlashCmdList["BOUNCY"] = function(msg)
 
     elseif cmd == "help" then
         print(string.format("|cff%s————— BOUNCY %s —————|r", B.COLOR.TITLE, B.VERSION))
-        print(string.format("|cff%s/bouncy|r              Toggle overlay", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy|r              Open/close statistics", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy show|r         Show overlay", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy hide|r         Hide overlay", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy stats|r        Open statistics", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy config|r       Open settings", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy reset|r        Reset this character", B.COLOR.LEVEL_UP))

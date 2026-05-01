@@ -49,7 +49,7 @@ end
 -------------------------------------------------------------------------------
 local plusPool = {}
 
-local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo)
+local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo, offsetX, offsetY)
     local p
     for _, f in ipairs(plusPool) do
         if not f:IsShown() then p = f; break end
@@ -76,13 +76,13 @@ local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo)
     p.fs:SetFont(GetFontPath(), fontSize or 16, "THICKOUTLINE")
     p.fs:SetText(string.format("|cff%s%s|r", hexColor or "FFFFFF", label))
     p:ClearAllPoints()
-    p:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx, cy)
+    p:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx + (offsetX or 0), cy + (offsetY or 0))
     p:SetAlpha(1)
     p:SetScale(isCombo and 0.75 or 1.0)
     p:Show()
 
-    local startX  = cx
-    local startY  = cy
+    local startX  = cx + (offsetX or 0)
+    local startY  = cy + (offsetY or 0)
     local elapsed = 0
     -- combo: diagonal up-right;  normal: near-vertical rise
     local DX  = isCombo and 40 or 8
@@ -203,8 +203,11 @@ function Overlay:ApplySettings()
     -- All elements controlled individually regardless of ultraMinimal
     self.titleText:SetShown(s.showTitle)
     self.jumpLbl:SetShown(s.showJumpsLabel)
-    self.lvlText:SetShown(s.showLevel)
-    self.xpBar:SetShown(s.showXPBar)
+    local showXPAndLevel = (s.showXPBarAndLevel ~= false)
+    self.lvlText:SetShown(showXPAndLevel)
+    self.xpBar:SetShown(showXPAndLevel)
+    self.xpBar:ClearAllPoints()
+    self.xpBar:SetPoint("BOTTOM", f, "BOTTOM", 0, 4 + (s.xpBarOffsetY or 0))
 
     -- Jump counter font, size + color
     local fontSize = s.overlayFontSize or 26
@@ -334,7 +337,7 @@ end
 -------------------------------------------------------------------------------
 -- Events
 -------------------------------------------------------------------------------
-local OVERLAY_SHOW_DUR = 5.0   -- seconds overlay stays visible after a jump
+local OVERLAY_SHOW_DUR = 4.0   -- seconds overlay stays visible after a jump
 local OVERLAY_FADE_DUR = 1.2   -- seconds for fade-out
 
 function Overlay:OnJump(data)
@@ -347,6 +350,10 @@ function Overlay:OnJump(data)
         UIFrameFadeIn(self.frame, 0.15, self.frame:GetAlpha(), targetAlpha)
         if self._hideTimer then self._hideTimer:Cancel() end
         self._hideTimer = C_Timer.After(OVERLAY_SHOW_DUR, function()
+            if B.Details and B.Details:IsCustomPanelVisible() then
+                self._hideTimer = nil
+                return
+            end
             UIFrameFadeOut(self.frame, OVERLAY_FADE_DUR, self.frame:GetAlpha(), 0)
             C_Timer.After(OVERLAY_FADE_DUR, function()
                 self.frame:Hide()
@@ -366,14 +373,14 @@ function Overlay:OnJump(data)
             and string.format("+%d Exp (x%.1f)", data.xpGained, data.mult)
             or  string.format("+%d Exp", data.xpGained)
         local col = isCombo and "FFD700" or "FFFFFF"
-        SpawnFloating(self.frame, label, col, s.plusOneSize or 16, isCombo)
+        SpawnFloating(self.jumpNum, label, col, s.plusOneSize or 16, isCombo, s.plusOneOffsetX or -54, 2)
     end
 
     if s.showStreak then
         self.badge:SetStreak(data.streak, s.streakThreshold)
     end
 
-    if s.showXPBar then
+    if s.showXPBarAndLevel ~= false then
         self.xpBar:Flash()
     end
 

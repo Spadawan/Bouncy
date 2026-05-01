@@ -24,8 +24,7 @@ local DEFAULTS = {
         -- Overlay elements
         showTitle        = false,   -- "BOUNCY" label
         showJumpsLabel   = true,    -- "JUMPS" sub-label
-        showLevel        = false,   -- Lv.X bottom right
-        showXPBar        = true,    -- XP progress bar
+        showXPBarAndLevel= true,    -- XP bar + level text (single toggle)
         showPlusOne      = true,    -- floating +Exp animation
         showStreak       = true,    -- streak badge
         -- Appearance
@@ -34,6 +33,8 @@ local DEFAULTS = {
         -- Animations
         plusOneDirection = "auto",  -- "auto" | "up" | "down"
         plusOneSize      = 16,      -- font size of +Exp text (10-22)
+        plusOneOffsetX   = -54,     -- +Exp anchor offset relative to jump number
+        xpBarOffsetY     = 0,       -- vertical offset for XP bar
         squishEnabled    = true,    -- squish animation on jump
         -- Streak badge
         streakThreshold  = 3,       -- minimum streak to show badge (1-10)

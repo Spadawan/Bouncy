@@ -29,6 +29,11 @@ local function MakeFont(parent, size, flags)
     return fs
 end
 
+local function ClassColorHex(classTag)
+    local c = (RAID_CLASS_COLORS and RAID_CLASS_COLORS[classTag or ""]) or NORMAL_FONT_COLOR
+    return string.format("%02X%02X%02X", c.r * 255, c.g * 255, c.b * 255)
+end
+
 local function CreateTab(parent, label, idx, x)
     local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
     btn:SetSize(115, TAB_H)
@@ -569,8 +574,9 @@ function Details:_RefreshLeaders(p)
                                    isSelf and 0.30 or 0.10, 0.92)
             w.row:SetBackdropBorderColor(isSelf and 0.5 or 0.2, isSelf and 0.8 or 0.3,
                                          isSelf and 1.0 or 0.5, 0.7)
+            local nameHex = ClassColorHex(entry.class)
             w.nameFS:SetText(string.format("|cff%s%s|r",
-                isSelf and "AADDFF" or "CCCCCC", entry.name or "?"))
+                nameHex, entry.name or "?"))
             w.realmFS:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, entry.realm or ""))
             w.jumpFS:SetText(string.format("|cff%s%s|r  |cff%sjumps|r",
                 B.COLOR.JUMP, B.FormatNum(entry.jumps), B.COLOR.DIM))
@@ -822,66 +828,58 @@ function Details:_BuildCustomPanel(p)
         UpdateSelection()
     end
 
-    -- Helper: font picker (cycle through WoW defaults + LibSharedMedia if loaded)
+    -- Helper: font picker (scrollable dropdown)
     local function FontPicker(label)
         local fonts     = BuildFontList()
-        local curIdx    = 1
-        local curPath   = s.overlayFont or "Fonts\\FRIZQT__.TTF"
-        for i, f in ipairs(fonts) do
-            if f.path == curPath then curIdx = i; break end
-        end
 
         local lbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         lbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
         lbl:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, label))
 
-        local nameLbl = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        nameLbl:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y - 18)
-        nameLbl:SetTextColor(1, 1, 1)
+        local dd = CreateFrame("Frame", nil, c, "UIDropDownMenuTemplate")
+        dd:SetPoint("TOPLEFT", c, "TOPLEFT", -8, y - 16)
+        UIDropDownMenu_SetWidth(dd, 280)
 
-        local prevBtn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
-        prevBtn:SetSize(26, 22)
-        prevBtn:SetPoint("LEFT", nameLbl, "RIGHT", 8, 0)
-        prevBtn:SetText("<")
-
-        local nextBtn = CreateFrame("Button", nil, c, "UIPanelButtonTemplate")
-        nextBtn:SetSize(26, 22)
-        nextBtn:SetPoint("LEFT", prevBtn, "RIGHT", 2, 0)
-        nextBtn:SetText(">")
-
-        local preview = c:CreateFontString(nil, "OVERLAY")
-        preview:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y - 40)
-        preview:SetFont(s.overlayFont or "Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
-        preview:SetTextColor(1, 1, 1)
-        preview:SetText("0  1  2  3  JUMPS  Exp")
-
-        local function UpdateFont()
-            local f = fonts[curIdx]
-            nameLbl:SetText(f.name)
-            preview:SetFont(f.path, 14, "OUTLINE")
-            s.overlayFont = f.path
+        local function SetSelected(path)
+            s.overlayFont = path
             ApplyNow()
         end
-        UpdateFont()
 
-        prevBtn:SetScript("OnClick", function()
-            curIdx = ((curIdx - 2) % #fonts) + 1
-            UpdateFont()
-        end)
-        nextBtn:SetScript("OnClick", function()
-            curIdx = (curIdx % #fonts) + 1
-            UpdateFont()
+        UIDropDownMenu_Initialize(dd, function(self, level)
+            local itemsPerPage = 18
+            local startIdx = ((level or 1) - 1) * itemsPerPage + 1
+            local stopIdx = math.min(#fonts, startIdx + itemsPerPage - 1)
+            for i = startIdx, stopIdx do
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = fonts[i].name
+                info.func = function()
+                    UIDropDownMenu_SetSelectedValue(dd, fonts[i].path)
+                    UIDropDownMenu_SetText(dd, fonts[i].name)
+                    SetSelected(fonts[i].path)
+                end
+                info.value = fonts[i].path
+                UIDropDownMenu_AddButton(info, level)
+            end
+            if stopIdx < #fonts then
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = "More..."
+                info.hasArrow = true
+                info.menuList = {}
+                UIDropDownMenu_AddButton(info, level)
+            end
         end)
 
         table.insert(p._updaters, function()
             local path = s.overlayFont or "Fonts\\FRIZQT__.TTF"
-            curIdx = 1
             for i, f in ipairs(fonts) do
-                if f.path == path then curIdx = i; break end
+                if f.path == path then
+                    UIDropDownMenu_SetSelectedValue(dd, path)
+                    UIDropDownMenu_SetText(dd, f.name)
+                    break
+                end
             end
-            UpdateFont()
         end)
-        y = y - 58
+        y = y - 54
     end
 
     -- ============================================================
@@ -898,12 +896,9 @@ function Details:_BuildCustomPanel(p)
     Checkbox("Show \"JUMPS\" sub-label", nil,
         function() return s.showJumpsLabel end,
         function(v) s.showJumpsLabel = v   end)
-    Checkbox("Show level  (Lv.X)", nil,
-        function() return s.showLevel      end,
-        function(v) s.showLevel = v         end)
-    Checkbox("Show XP bar", nil,
-        function() return s.showXPBar      end,
-        function(v) s.showXPBar = v         end)
+    Checkbox("Show XP bar + level", nil,
+        function() return s.showXPBarAndLevel ~= false end,
+        function(v) s.showXPBarAndLevel = v end)
     Checkbox("Show streak badge", nil,
         function() return s.showStreak     end,
         function(v) s.showStreak = v        end)
@@ -926,6 +921,10 @@ function Details:_BuildCustomPanel(p)
         function() return s.overlayScale or 1.0 end,
         function(v) s.overlayScale = v end,
         "%.2fx")
+    Slider("XP bar vertical offset", -20, 40, 1,
+        function() return s.xpBarOffsetY or 0 end,
+        function(v) s.xpBarOffsetY = v end,
+        "%.0f px")
     y = y - 4
 
     FontPicker("Font")
@@ -1008,7 +1007,12 @@ end
 -------------------------------------------------------------------------------
 function Details:Show()
     self.frame:Show()
+    if B.Overlay and B.Overlay.frame then B.Overlay.frame:Show() end
     self:Refresh()
 end
 function Details:Hide()   self.frame:Hide() end
 function Details:Toggle() if self.frame then if self.frame:IsShown() then self:Hide() else self:Show() end end end
+
+function Details:IsCustomPanelVisible()
+    return self.frame and self.frame:IsShown() and activePanel == PANEL_CUSTOM
+end
