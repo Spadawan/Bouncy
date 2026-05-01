@@ -343,9 +343,9 @@ function Details:_BuildStatsPanel(p)
     nextTitleLabel:SetPoint("TOPLEFT", streakLabel, "BOTTOMLEFT", 0, -8)
     p.nextTitleLabel = nextTitleLabel
 
-    HSep(p, -152)
+    HSep(p, -246)
 
-    local statY = -164
+    local statY = -258
     local function StatRow(label, yoff)
         local lbl = MakeFont(p, 11, "")
         lbl:SetPoint("TOPLEFT", p, "TOPLEFT", 20, yoff)
