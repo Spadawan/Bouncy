@@ -87,7 +87,8 @@ local function OnJump()
     local baseXP = math.floor(2 * mult)
     local prog = B.DB:GetProgression()
     local creatureLevel = prog.level or 1
-    local bonusExact = (baseXP * (creatureLevel * 0.01)) + (prog.bonusXPFraction or 0)
+    local bonusPct = (B.Leveling and B.Leveling.GetCreatureBonusPercent and B.Leveling:GetCreatureBonusPercent(creatureLevel)) or 0
+    local bonusExact = (baseXP * (bonusPct * 0.01)) + (prog.bonusXPFraction or 0)
     local bonusXP = math.floor(bonusExact)
     prog.bonusXPFraction = bonusExact - bonusXP
     local xpGained = baseXP + bonusXP

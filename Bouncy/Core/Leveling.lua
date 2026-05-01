@@ -65,6 +65,12 @@ function Leveling:GetCreatureXPRequirement(level)
     return 50 + ((level - 1) * 25)
 end
 
+function Leveling:GetCreatureBonusPercent(level)
+    local stage = self:GetCreatureStage(level or 1)
+    local evolutions = math.max(0, (stage.art or 1) - 1)
+    return math.min(15, evolutions * 3)
+end
+
 function Leveling:CanEvolve(prog)
     local level = prog.level or 1
     local stage = self:GetCreatureStage(level)

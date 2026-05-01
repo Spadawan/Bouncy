@@ -395,14 +395,14 @@ function Details:_BuildStatsPanel(p)
             PlayCreaturePopup(p, "Level up!", {0.4, 1.0, 0.3})
             if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\LevelUp.ogg", "SFX") end
         else
-            local feedAmount = 100
+            local feedAmount = 50
             if (prog.xp or 0) >= feedAmount then
                 prog.xp = prog.xp - feedAmount
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
                 local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
                 PlayCreatureFeedAnim(p)
                 SpawnCreatureParticles(p, false)
-                PlayCreaturePopup(p, autoLevel and "Level up!" or "+100 EXP", {0.4, 1.0, 0.3})
+                PlayCreaturePopup(p, autoLevel and "Level up!" or "+50 EXP", {0.4, 1.0, 0.3})
                 if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\iEating1.ogg", "SFX") end
             else
                 PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
@@ -485,7 +485,7 @@ function Details:_RefreshStats(p)
         p.artwork:ClearAllPoints()
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
         p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\Astral_%02d.tga", stage.art))
-        local bonusPct = math.floor(((prog.level or 1) * 1))
+        local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1)
         p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Bonus XP|r",
             B.COLOR.LEVEL_UP, creatureLvl, stage.label, bonusPct))
         p.evolveBtn:Show()
