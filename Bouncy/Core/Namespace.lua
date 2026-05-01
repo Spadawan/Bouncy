@@ -10,6 +10,26 @@ _G.Bouncy = B
 B.ADDON_NAME = "Bouncy"
 B.VERSION    = "1.0.0"
 
+B.CREATURE_TYPES = {
+    "Astral",
+    "Fire",
+    "Water",
+    "Lunar",
+}
+
+local function BuildCreatureLevelSet(prefix)
+    local out = {}
+    for i = 1, 6 do
+        out[i] = {
+            level = i,
+            name = string.format("%s Evolution %d", prefix, i),
+            threshold = B.LEVELS and B.LEVELS[i] and B.LEVELS[i].threshold or 0,
+            artwork = string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", prefix, i),
+        }
+    end
+    return out
+end
+
 -------------------------------------------------------------------------------
 -- Bunny evolution stages (XP-based)
 -- artwork = placeholder — replace with your own TGA/BLP per level
@@ -23,6 +43,10 @@ B.LEVELS = {
     { level = 6, name = "Master Bouncer",   threshold = 10000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny6.tga" },
     { level = 7, name = "Jump Legend",      threshold = 25000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny7.tga" },
     { level = 8, name = "Bounce God",       threshold = 60000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+}
+
+B.CREATURE_LEVELS = {
+    Astral = BuildCreatureLevelSet("Astral"),
 }
 
 -------------------------------------------------------------------------------

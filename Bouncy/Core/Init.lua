@@ -54,7 +54,9 @@ SLASH_BOUNCY1 = "/bouncy"
 SLASH_BOUNCY2 = "/bcy"
 
 SlashCmdList["BOUNCY"] = function(msg)
-    local cmd = strtrim(msg or ""):lower()
+    local raw = strtrim(msg or "")
+    local cmd, rest = raw:match("^(%S+)%s*(.-)$")
+    cmd = (cmd or ""):lower()
 
     if cmd == "" then
         B.Details:Toggle()
@@ -78,6 +80,47 @@ SlashCmdList["BOUNCY"] = function(msg)
         if B.Overlay then B.Overlay:Refresh() end
         print(string.format("|cff%sBouncy|r Character data reset.", B.COLOR.TITLE))
 
+    elseif cmd == "xp" then
+        local amount = tonumber(rest or "")
+        if not amount then
+            print(string.format("|cff%sUsage: /bouncy xp <amount>|r", B.COLOR.DIM))
+            return
+        end
+        local prog = B.DB:AddXP(math.floor(amount))
+        local newLevel = B.Leveling:Evaluate(prog)
+        if B.Overlay then B.Overlay:Refresh() end
+        if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+        print(string.format("|cff%sBouncy|r Added %d XP.", B.COLOR.TITLE, math.floor(amount)))
+        if newLevel then
+            print(string.format("|cff%sLevel up!|r Level %d - %s", B.COLOR.LEVEL_UP, newLevel.level, newLevel.name))
+        end
+
+    elseif cmd == "evolve" then
+        local prog = B.DB:GetProgression()
+        local cur = B.Leveling:GetLevelForXP(prog.xp)
+        local nxt = B.Leveling:GetNextLevel(cur.level)
+        if nxt then
+            prog.xp = nxt.threshold
+            B.Leveling:Evaluate(prog)
+            if B.Overlay then B.Overlay:Refresh() end
+            if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+            print(string.format("|cff%sBouncy|r Forced evolution to level %d.", B.COLOR.TITLE, nxt.level))
+        else
+            print(string.format("|cff%sBouncy|r Already at max level.", B.COLOR.TITLE))
+        end
+
+    elseif cmd == "type" then
+        local wanted = rest and rest:lower() or ""
+        for _, t in ipairs(B.CREATURE_TYPES or {}) do
+            if t:lower() == wanted then
+                B.DB:SetCreatureType(t)
+                if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+                print(string.format("|cff%sBouncy|r Creature type set to %s.", B.COLOR.TITLE, t))
+                return
+            end
+        end
+        print(string.format("|cff%sUsage: /bouncy type astral|fire|water|lunar|r", B.COLOR.DIM))
+
     elseif cmd == "version" then
         print(string.format("|cff%sBouncy|r v%s", B.COLOR.TITLE, B.VERSION))
 
@@ -89,6 +132,9 @@ SlashCmdList["BOUNCY"] = function(msg)
         print(string.format("|cff%s/bouncy stats|r        Open statistics", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy config|r       Open settings", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy reset|r        Reset this character", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy xp 250|r       Add XP for testing", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy evolve|r       Force next evolution", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy type astral|r  Set creature type", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy help|r         Show this help", B.COLOR.LEVEL_UP))
         print(string.format("|cff%sRight-click the overlay|r -> Statistics", B.COLOR.DIM))
 

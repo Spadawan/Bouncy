@@ -7,11 +7,20 @@ local B        = _G.Bouncy
 B.Leveling     = {}
 local Leveling = B.Leveling
 
+function Leveling:GetLevelsForProgression(prog)
+    local creatureType = prog and prog.creatureType
+    if creatureType and B.CREATURE_LEVELS and B.CREATURE_LEVELS[creatureType] then
+        return B.CREATURE_LEVELS[creatureType]
+    end
+    return B.LEVELS
+end
+
 function Leveling:GetLevelForXP(xp)
-    local current = B.LEVELS[1]
-    for i = #B.LEVELS, 1, -1 do
-        if xp >= B.LEVELS[i].threshold then
-            current = B.LEVELS[i]
+    local levels = self:GetLevelsForProgression(B.DB and B.DB:GetProgression() or nil)
+    local current = levels[1]
+    for i = #levels, 1, -1 do
+        if xp >= levels[i].threshold then
+            current = levels[i]
             break
         end
     end
@@ -19,7 +28,8 @@ function Leveling:GetLevelForXP(xp)
 end
 
 function Leveling:GetNextLevel(currentLevel)
-    for _, lvl in ipairs(B.LEVELS) do
+    local levels = self:GetLevelsForProgression(B.DB and B.DB:GetProgression() or nil)
+    for _, lvl in ipairs(levels) do
         if lvl.level == currentLevel + 1 then return lvl end
     end
     return nil

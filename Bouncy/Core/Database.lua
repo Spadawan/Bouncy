@@ -171,7 +171,10 @@ end
 function DB:GetProgression()
     local key = self:CharKey()
     if not Bouncy_DB.progression[key] then
-        Bouncy_DB.progression[key] = { xp = 0, level = 1 }
+        Bouncy_DB.progression[key] = { xp = 0, level = 1, creatureType = nil }
+    end
+    if Bouncy_DB.progression[key].creatureType == "" then
+        Bouncy_DB.progression[key].creatureType = nil
     end
     return Bouncy_DB.progression[key]
 end
@@ -179,6 +182,12 @@ end
 function DB:AddXP(amount)
     local prog = self:GetProgression()
     prog.xp = prog.xp + amount
+    return prog
+end
+
+function DB:SetCreatureType(creatureType)
+    local prog = self:GetProgression()
+    prog.creatureType = creatureType
     return prog
 end
 

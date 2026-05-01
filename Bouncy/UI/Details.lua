@@ -258,6 +258,48 @@ function Details:_BuildStatsPanel(p)
     local _, r3 = StatRow("Jumps - Week",   statY - 44)
 
     p._r = { r1, r2, r3 }
+
+    local function MakeSmallButton(label, width, onClick)
+        local btn = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+        btn:SetSize(width, 22)
+        btn:SetText(label)
+        btn:SetScript("OnClick", onClick)
+        return btn
+    end
+
+    p.addXPBtn = MakeSmallButton("+25 XP", 70, function()
+        local prog = B.DB:AddXP(25)
+        B.Leveling:Evaluate(prog)
+        Details:Refresh()
+    end)
+    p.addXPBtn:SetPoint("TOPLEFT", p, "TOPLEFT", 20, statY - 84)
+
+    p.evolveBtn = MakeSmallButton("Evolve +1", 90, function()
+        local prog = B.DB:GetProgression()
+        local cur = B.Leveling:GetLevelForXP(prog.xp)
+        local nxt = B.Leveling:GetNextLevel(cur.level)
+        if nxt then
+            prog.xp = nxt.threshold
+            B.Leveling:Evaluate(prog)
+            Details:Refresh()
+        end
+    end)
+    p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 8, 0)
+
+    p.typeHint = MakeFont(p, 10, "")
+    p.typeHint:SetPoint("TOPLEFT", p.addXPBtn, "BOTTOMLEFT", 0, -8)
+
+    p.typeButtons = {}
+    local bx = 0
+    for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
+        local btn = MakeSmallButton(creatureType, 72, function()
+            B.DB:SetCreatureType(creatureType)
+            Details:Refresh()
+        end)
+        btn:SetPoint("TOPLEFT", p.typeHint, "BOTTOMLEFT", bx, -6)
+        bx = bx + 76
+        table.insert(p.typeButtons, btn)
+    end
 end
 
 function Details:_RefreshStats(p)
@@ -300,6 +342,17 @@ function Details:_RefreshStats(p)
     r[1]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.totalJumps)))
     r[2]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.daily.jumps or 0)))
     r[3]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.weekly.jumps or 0)))
+
+    local shouldChooseType = (lvlData.level >= 2 and not prog.creatureType)
+    p.typeHint:SetShown(shouldChooseType or (prog.creatureType ~= nil))
+    if shouldChooseType then
+        p.typeHint:SetText("|cffffcc00Choose your creature type (level 2 unlock):|r")
+    elseif prog.creatureType then
+        p.typeHint:SetText(string.format("|cff%sType selected:|r %s", B.COLOR.DIM, prog.creatureType))
+    end
+    for _, btn in ipairs(p.typeButtons or {}) do
+        btn:SetShown(shouldChooseType)
+    end
 end
 
 -------------------------------------------------------------------------------
