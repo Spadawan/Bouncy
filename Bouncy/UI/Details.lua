@@ -24,15 +24,15 @@ local function PlayCreatureFeedAnim(p)
     if not p._feedAnim then
         local ag = p.artwork:CreateAnimationGroup()
         local s1 = ag:CreateAnimation("Scale")
-        s1:SetOrigin("CENTER", 0, 0); s1:SetScale(0.20, 0.20); s1:SetDuration(0.10); s1:SetOrder(1)
+        s1:SetOrigin("CENTER", 0, 0); s1:SetScale(1.05, 1.05); s1:SetDuration(0.12); s1:SetOrder(1)
         local t1 = ag:CreateAnimation("Translation")
-        t1:SetOffset(6, 0); t1:SetDuration(0.08); t1:SetOrder(2)
+        t1:SetOffset(2, 0); t1:SetDuration(0.05); t1:SetOrder(1)
         local t2 = ag:CreateAnimation("Translation")
-        t2:SetOffset(-12, 0); t2:SetDuration(0.08); t2:SetOrder(3)
+        t2:SetOffset(-4, 0); t2:SetDuration(0.08); t2:SetOrder(2)
         local t3 = ag:CreateAnimation("Translation")
-        t3:SetOffset(6, 0); t3:SetDuration(0.08); t3:SetOrder(4)
+        t3:SetOffset(2, 0); t3:SetDuration(0.05); t3:SetOrder(3)
         local s2 = ag:CreateAnimation("Scale")
-        s2:SetOrigin("CENTER", 0, 0); s2:SetScale(-0.20, -0.20); s2:SetDuration(0.12); s2:SetOrder(5)
+        s2:SetOrigin("CENTER", 0, 0); s2:SetScale(1 / 1.05, 1 / 1.05); s2:SetDuration(0.18); s2:SetOrder(2)
         p._feedAnim = ag
     end
     p._feedAnim:Stop()
@@ -43,13 +43,11 @@ local function PlayCreatureEvolveAnim(p)
     if not p._evolveAnim then
         local ag = p.artwork:CreateAnimationGroup()
         local a1 = ag:CreateAnimation("Alpha")
-        a1:SetFromAlpha(1); a1:SetToAlpha(0.2); a1:SetDuration(0.12); a1:SetOrder(1)
-        local s1 = ag:CreateAnimation("Scale")
-        s1:SetOrigin("CENTER", 0, 0); s1:SetScale(0.35, 0.35); s1:SetDuration(0.18); s1:SetOrder(2)
+        a1:SetFromAlpha(0.95); a1:SetToAlpha(0); a1:SetDuration(0.65); a1:SetOrder(1)
         local a2 = ag:CreateAnimation("Alpha")
-        a2:SetFromAlpha(0.2); a2:SetToAlpha(1); a2:SetDuration(0.12); a2:SetOrder(3)
-        local s2 = ag:CreateAnimation("Scale")
-        s2:SetOrigin("CENTER", 0, 0); s2:SetScale(-0.35, -0.35); s2:SetDuration(0.16); s2:SetOrder(4)
+        a2:SetFromAlpha(0); a2:SetToAlpha(1); a2:SetDuration(0.2); a2:SetOrder(1)
+        local a3 = ag:CreateAnimation("Alpha")
+        a3:SetFromAlpha(1); a3:SetToAlpha(0); a3:SetDuration(1.1); a3:SetOrder(2)
         p._evolveAnim = ag
     end
     p._evolveAnim:Stop()
@@ -268,8 +266,22 @@ function Details:_BuildStatsPanel(p)
     xpLabel:SetPoint("TOPLEFT", xpBar, "BOTTOMLEFT", 0, -2)
     p.xpLabel = xpLabel
 
+    local playerXPBar = CreateFrame("StatusBar", nil, p)
+    playerXPBar:SetSize(230, 10)
+    playerXPBar:SetPoint("TOPLEFT", xpLabel, "BOTTOMLEFT", 0, -8)
+    playerXPBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    playerXPBar:SetStatusBarColor(0.35, 0.55, 1.0)
+    playerXPBar:SetMinMaxValues(0, 1)
+    local pbg = playerXPBar:CreateTexture(nil, "BACKGROUND")
+    pbg:SetAllPoints(); pbg:SetColorTexture(0.10, 0.10, 0.10, 0.80)
+    p.playerXPBar = playerXPBar
+
+    local playerXPLabel = MakeFont(p, 10, "")
+    playerXPLabel:SetPoint("TOPLEFT", playerXPBar, "BOTTOMLEFT", 0, -2)
+    p.playerXPLabel = playerXPLabel
+
     local streakLabel = MakeFont(p, 11, "OUTLINE")
-    streakLabel:SetPoint("TOPLEFT", xpLabel, "BOTTOMLEFT", 0, -8)
+    streakLabel:SetPoint("TOPLEFT", playerXPLabel, "BOTTOMLEFT", 0, -8)
     p.streakLabel = streakLabel
 
     -- Next title goal
@@ -320,7 +332,9 @@ function Details:_BuildStatsPanel(p)
             PlayCreatureEvolveAnim(p)
         else
             local feedAmount = 100
-            if (prog.xp or 0) >= feedAmount then
+            if B.Leveling:CanEvolve(prog) then
+                return
+            elseif (prog.xp or 0) >= feedAmount then
                 prog.xp = prog.xp - feedAmount
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
                 PlayCreatureFeedAnim(p)
@@ -371,6 +385,9 @@ function Details:_RefreshStats(p)
         p.xpBar:Show()
         p.xpLabel:Show()
     end
+    local playerFrac = math.min(1, (prog.xp or 0) / 1000)
+    p.playerXPBar:SetValue(playerFrac)
+    p.playerXPLabel:SetText(string.format("|cff88AAFFPlayer XP reserve:|r %s", B.FormatNum(prog.xp or 0)))
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",
         B.COLOR.STREAK, char.bestStreak or 0))
 
