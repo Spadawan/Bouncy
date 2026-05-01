@@ -25,7 +25,10 @@ function Leveling:GetLevelsForProgression(prog)
 end
 
 function Leveling:GetLevelForXP(xp, forceBase)
-    local levels = forceBase and B.LEVELS or self:GetLevelsForProgression(B.DB and B.DB:GetProgression() or nil)
+    local levels = B.LEVELS
+    if not forceBase then
+        levels = B.LEVELS
+    end
     local current = levels[1]
     for i = #levels, 1, -1 do
         if xp >= levels[i].threshold then
@@ -36,8 +39,11 @@ function Leveling:GetLevelForXP(xp, forceBase)
     return current
 end
 
-function Leveling:GetNextLevel(currentLevel)
-    local levels = self:GetLevelsForProgression(B.DB and B.DB:GetProgression() or nil)
+function Leveling:GetNextLevel(currentLevel, forceBase)
+    local levels = B.LEVELS
+    if not forceBase then
+        levels = B.LEVELS
+    end
     for _, lvl in ipairs(levels) do
         if lvl.level == currentLevel + 1 then return lvl end
     end
@@ -45,9 +51,9 @@ function Leveling:GetNextLevel(currentLevel)
 end
 
 -- Returns frac [0-1], current level data, next level data (or nil if max)
-function Leveling:GetProgress(xp)
-    local cur  = self:GetLevelForXP(xp)
-    local next = self:GetNextLevel(cur.level)
+function Leveling:GetProgress(xp, forceBase)
+    local cur  = self:GetLevelForXP(xp, forceBase)
+    local next = self:GetNextLevel(cur.level, forceBase)
     if not next then return 1.0, cur, nil end
     local xpInto  = xp - cur.threshold
     local xpNeeded= next.threshold - cur.threshold
