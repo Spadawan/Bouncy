@@ -1,24 +1,31 @@
 -------------------------------------------------------------------------------
 -- UI/Overlay.lua
 -- Minimal draggable overlay. Respects all customization settings.
--- Ultra Minimal mode: transparent bg, no border, no title, no XP bar.
 -------------------------------------------------------------------------------
 
 local B       = _G.Bouncy
 B.Overlay     = {}
 local Overlay = B.Overlay
 
-local OW, OH = 150, 64
+local OW, OH = 150, 68
 local BG_R, BG_G, BG_B, BG_A = 0.04, 0.04, 0.10, 0.92
+
+local function GetFontPath()
+    if B.DB then
+        local s = B.DB:GetSettings()
+        if s and s.overlayFont then return s.overlayFont end
+    end
+    return "Fonts\\FRIZQT__.TTF"
+end
 
 local function MakeFont(parent, size, flags)
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    fs:SetFont("Fonts\\FRIZQT__.TTF", size, flags or "OUTLINE")
+    fs:SetFont(GetFontPath(), size, flags or "OUTLINE")
     return fs
 end
 
 -------------------------------------------------------------------------------
--- Squish animation
+-- Squish animation — applied to the jumpNumFrame wrapper
 -------------------------------------------------------------------------------
 local function AnimSquish(frame)
     if not frame._squishAG then
@@ -36,69 +43,98 @@ local function AnimSquish(frame)
 end
 
 -------------------------------------------------------------------------------
--- +1 floating text — ease-out rise + fade
+-- Floating text pool
+-- isCombo=true  → diagonal up-right, scale punch, gold text
+-- isCombo=false → straight rise, plain text
 -------------------------------------------------------------------------------
 local plusPool = {}
 
-local function SpawnPlusOne(anchorFrame, label, hexColor, goUp, fontSize)
+local function SpawnFloating(anchorFrame, label, hexColor, fontSize, isCombo)
     local p
     for _, f in ipairs(plusPool) do
         if not f:IsShown() then p = f; break end
     end
     if not p then
         p = CreateFrame("Frame", nil, UIParent)
-        p:SetSize(110, 24)
+        p:SetSize(200, 32)
         p:SetFrameStrata("TOOLTIP")
         local fs = p:CreateFontString(nil, "OVERLAY")
         fs:SetAllPoints()
+        fs:SetWordWrap(false)
+        fs:SetJustifyH("CENTER")
         p.fs = fs
         table.insert(plusPool, p)
     end
 
+    -- Safe center: fall back to screen center if frame isn't laid out yet
     local cx, cy = anchorFrame:GetCenter()
-    if not cx then return end
+    if not cx or cx == 0 then
+        cx = UIParent:GetWidth()  / 2
+        cy = UIParent:GetHeight() / 2
+    end
 
-    p.fs:SetFont("Fonts\\FRIZQT__.TTF", fontSize or 13, "OUTLINE")
+    p.fs:SetFont(GetFontPath(), fontSize or 16, "THICKOUTLINE")
     p.fs:SetText(string.format("|cff%s%s|r", hexColor or "FFFFFF", label))
     p:ClearAllPoints()
     p:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx, cy)
-    p:SetAlpha(1); p:SetScale(1); p:Show()
+    p:SetAlpha(1)
+    p:SetScale(isCombo and 0.75 or 1.0)
+    p:Show()
 
-    local startY = cy
-    local dir    = goUp and 1 or -1
+    local startX  = cx
+    local startY  = cy
     local elapsed = 0
-    local RISE, DUR = 55, 1.3
+    -- combo: diagonal up-right;  normal: near-vertical rise
+    local DX  = isCombo and 40 or 8
+    local DY  = isCombo and 46 or 55
+    local DUR = isCombo and 1.5 or 1.3
 
     p:SetScript("OnUpdate", function(self, dt)
         elapsed = elapsed + dt
         local t = elapsed / DUR
-        if t >= 1.0 then self:Hide(); self:SetScript("OnUpdate", nil); return end
+        if t >= 1.0 then
+            self:SetScale(1.0)
+            self:Hide()
+            self:SetScript("OnUpdate", nil)
+            return
+        end
         local ease = 1 - (1 - t)^3
+
+        -- scale punch for combos: 0.75 → 1.3 → 1.0
+        local sc = 1.0
+        if isCombo then
+            if t < 0.12 then
+                sc = 0.75 + 0.55 * (t / 0.12)
+            elseif t < 0.28 then
+                sc = 1.30 - 0.30 * ((t - 0.12) / 0.16)
+            end
+        end
+        self:SetScale(sc)
+
         self:ClearAllPoints()
-        self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx, startY + dir * RISE * ease)
+        self:SetPoint("CENTER", UIParent, "BOTTOMLEFT",
+            startX + DX * ease,
+            startY + DY * ease)
         self:SetAlpha(t < 0.5 and 1.0 or (1.0 - (t - 0.5) / 0.5))
     end)
 end
 
 -------------------------------------------------------------------------------
--- Streak badge — alpha pulse, GameFontNormalSmall
+-- Streak badge — colored text with THICKOUTLINE, no background fill
 -------------------------------------------------------------------------------
 local STREAK_TIERS = {
-    { min=10, r=0.90, g=0.38, b=0.02 },
-    { min=6,  r=0.75, g=0.52, b=0.02 },
-    { min=3,  r=0.14, g=0.48, b=0.18 },
+    { min=10, hex="FF6600", mult="x3"   },
+    { min=6,  hex="FFCC00", mult="x2"   },
+    { min=3,  hex="00FF88", mult="x1.5" },
 }
 
 local function CreateStreakBadge(parent)
     local badge = CreateFrame("Frame", nil, parent)
-    badge:SetSize(52, 16)
+    badge:SetSize(62, 18)
     badge:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -4, -4)
 
-    local bg = badge:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    badge.bg = bg
-
-    local fs = badge:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local fs = badge:CreateFontString(nil, "OVERLAY")
+    fs:SetFont("Fonts\\FRIZQT__.TTF", 11, "THICKOUTLINE")
     fs:SetPoint("CENTER"); fs:SetJustifyH("CENTER")
     badge.fs = fs
     badge:Hide()
@@ -117,14 +153,11 @@ local function CreateStreakBadge(parent)
             if self._pulseAG:IsPlaying() then self._pulseAG:Stop() end
             return
         end
-        local r, g, b = 0.14, 0.48, 0.18
+        local hex, mult = "00FF88", "x1.5"
         for _, tier in ipairs(STREAK_TIERS) do
-            if n >= tier.min then r,g,b = tier.r, tier.g, tier.b; break end
+            if n >= tier.min then hex, mult = tier.hex, tier.mult; break end
         end
-        self.bg:SetColorTexture(r, g, b, 0.82)
-        local mult = n >= 10 and "x3" or (n >= 6 and "x2" or "x1.5")
-        self.fs:SetText(n .. " " .. mult)
-        self.fs:SetTextColor(1, 1, 1)
+        self.fs:SetText(string.format("|cff%s%d %s|r", hex, n, mult))
         self:Show()
         if not self._pulseAG:IsPlaying() then self._pulseAG:Play() end
     end
@@ -151,39 +184,37 @@ local function CreateXPBar(parent, w)
 end
 
 -------------------------------------------------------------------------------
--- Apply visual settings to the overlay (called on init + whenever settings change)
+-- Apply visual settings
 -------------------------------------------------------------------------------
 function Overlay:ApplySettings()
     if not self.frame then return end
     local s = B.DB:GetSettings()
     local f = self.frame
 
+    -- ultraMinimal controls only bg + border
     if s.ultraMinimal then
-        -- Transparent: no backdrop bg, no border
         f:SetBackdropColor(0, 0, 0, 0)
         f:SetBackdropBorderColor(0, 0, 0, 0)
-        self.titleText:Hide()
-        self.jumpLbl:Hide()
-        self.lvlText:Hide()
-        self.xpBar:Hide()
     else
         f:SetBackdropColor(BG_R, BG_G, BG_B, BG_A)
         f:SetBackdropBorderColor(0.30, 0.55, 1.0, 0.55)
-        self.titleText:SetShown(s.showTitle)
-        self.jumpLbl:SetShown(s.showJumpsLabel)
-        self.lvlText:SetShown(s.showLevel)
-        self.xpBar:SetShown(s.showXPBar)
     end
 
-    -- Jump counter font size + color
+    -- All elements controlled individually regardless of ultraMinimal
+    self.titleText:SetShown(s.showTitle)
+    self.jumpLbl:SetShown(s.showJumpsLabel)
+    self.lvlText:SetShown(s.showLevel)
+    self.xpBar:SetShown(s.showXPBar)
+
+    -- Jump counter font, size + color
     local fontSize = s.overlayFontSize or 26
-    self.jumpNum:SetFont("Fonts\\FRIZQT__.TTF", fontSize, "OUTLINE")
+    local fontPath = s.overlayFont or "Fonts\\FRIZQT__.TTF"
+    self.jumpNum:SetFont(fontPath, fontSize, "OUTLINE")
     local tc = s.jumpTextColor or { r=1, g=1, b=1 }
     self.jumpNum:SetTextColor(tc.r, tc.g, tc.b)
 
-    -- Overlay scale
+    -- Overlay scale + alpha
     f:SetScale(s.overlayScale or 1.0)
-    -- Overlay alpha
     f:SetAlpha(s.overlayAlpha or 0.95)
 end
 
@@ -215,14 +246,19 @@ function Overlay:Init()
     titleText:SetTextColor(0.63, 0.89, 1.0)
     titleText:SetText("BOUNCY")
 
-    -- Big counter
-    local jumpNum = MakeFont(f, settings.overlayFontSize or 26, "OUTLINE")
-    jumpNum:SetPoint("CENTER", f, "CENTER", 0, 4)
+    -- Wrapper frame — squish target for the jump counter area
+    local jumpNumFrame = CreateFrame("Frame", nil, f)
+    jumpNumFrame:SetSize(OW, 46)
+    jumpNumFrame:SetPoint("CENTER", f, "CENTER", 0, 2)
 
-    -- "JUMPS" sub-label
-    local jumpLbl = MakeFont(f, 7, "")
-    jumpLbl:SetPoint("TOP", jumpNum, "BOTTOM", 0, 2)
-    jumpLbl:SetTextColor(0.45,0.45,0.45)
+    -- Big counter (child of jumpNumFrame so squish applies to it)
+    local jumpNum = MakeFont(jumpNumFrame, settings.overlayFontSize or 26, "OUTLINE")
+    jumpNum:SetPoint("CENTER", jumpNumFrame, "CENTER", 0, 8)
+
+    -- "JUMPS" sub-label (also in jumpNumFrame)
+    local jumpLbl = MakeFont(jumpNumFrame, 7, "")
+    jumpLbl:SetPoint("TOP", jumpNum, "BOTTOM", 0, 1)
+    jumpLbl:SetTextColor(0.45, 0.45, 0.45)
     jumpLbl:SetText("JUMPS")
 
     -- Level
@@ -236,13 +272,14 @@ function Overlay:Init()
     -- XP bar
     local xpBar = CreateXPBar(f, OW)
 
-    self.frame     = f
-    self.titleText = titleText
-    self.jumpNum   = jumpNum
-    self.jumpLbl   = jumpLbl
-    self.lvlText   = lvlText
-    self.badge     = badge
-    self.xpBar     = xpBar
+    self.frame        = f
+    self.jumpNumFrame = jumpNumFrame
+    self.titleText    = titleText
+    self.jumpNum      = jumpNum
+    self.jumpLbl      = jumpLbl
+    self.lvlText      = lvlText
+    self.badge        = badge
+    self.xpBar        = xpBar
 
     -- Drag
     f:SetMovable(true)
@@ -256,26 +293,18 @@ function Overlay:Init()
         local point,_,_,x,y = self:GetPoint()
         B.DB:SaveOverlayPosition(point, x, y)
     end)
-    f:SetScript("OnEnter", function(self)
-        UIFrameFadeIn(self, 0.15, self:GetAlpha(), 1.0)
-    end)
-    f:SetScript("OnLeave", function(self)
-        local s = B.DB:GetSettings()
-        UIFrameFadeOut(self, 0.30, self:GetAlpha(), s.overlayAlpha)
-    end)
     f:SetScript("OnMouseDown", function(self, btn)
         if btn == "RightButton" then B.Details:Toggle() end
     end)
 
-    -- Apply all visual settings
     self:ApplySettings()
     self:Refresh()
 
-    if settings.overlayVisible then f:Show() else f:Hide() end
+    f:Hide()  -- auto-shows on each jump, hides after
 
     B.Tracker:RegisterCallback(function(event, data)
-        if event == "JUMP"               then self:OnJump(data)
-        elseif event == "STREAK_BREAK"   then self:OnStreakBreak()
+        if event == "JUMP"                then self:OnJump(data)
+        elseif event == "STREAK_BREAK"    then self:OnStreakBreak()
         elseif event == "OVERLAY_REFRESH" then self:Refresh()
         end
     end)
@@ -305,45 +334,52 @@ end
 -------------------------------------------------------------------------------
 -- Events
 -------------------------------------------------------------------------------
+local OVERLAY_SHOW_DUR = 5.0   -- seconds overlay stays visible after a jump
+local OVERLAY_FADE_DUR = 1.2   -- seconds for fade-out
+
 function Overlay:OnJump(data)
     local s = B.DB:GetSettings()
 
+    -- Auto-show overlay, restart hide timer
+    if s.overlayVisible then
+        local targetAlpha = s.overlayAlpha or 0.95
+        self.frame:Show()
+        UIFrameFadeIn(self.frame, 0.15, self.frame:GetAlpha(), targetAlpha)
+        if self._hideTimer then self._hideTimer:Cancel() end
+        self._hideTimer = C_Timer.After(OVERLAY_SHOW_DUR, function()
+            UIFrameFadeOut(self.frame, OVERLAY_FADE_DUR, self.frame:GetAlpha(), 0)
+            C_Timer.After(OVERLAY_FADE_DUR, function()
+                self.frame:Hide()
+                self.frame:SetAlpha(targetAlpha)
+                self._hideTimer = nil
+            end)
+        end)
+    end
+
     if s.squishEnabled ~= false then
-        AnimSquish(self.frame)
+        AnimSquish(self.jumpNumFrame)
     end
 
     if s.showPlusOne then
-        local _, screenH = UIParent:GetSize()
-        local _, oy = self.frame:GetCenter()
-        local goUp
-        if s.plusOneDirection == "up" then
-            goUp = true
-        elseif s.plusOneDirection == "down" then
-            goUp = false
-        else
-            goUp = (oy or 0) < (screenH / 2)
-        end
-
-        local label = data.mult > 1
-            and string.format("+%d (x%.1f)", data.xpGained, data.mult)
-            or  string.format("+%d", data.xpGained)
-        local col = data.mult > 1 and "FFD700" or "FFFFFF"
-        SpawnPlusOne(self.frame, label, col, goUp, s.plusOneSize or 13)
+        local isCombo = data.mult > 1
+        local label = isCombo
+            and string.format("+%d Exp (x%.1f)", data.xpGained, data.mult)
+            or  string.format("+%d Exp", data.xpGained)
+        local col = isCombo and "FFD700" or "FFFFFF"
+        SpawnFloating(self.frame, label, col, s.plusOneSize or 16, isCombo)
     end
 
     if s.showStreak then
         self.badge:SetStreak(data.streak, s.streakThreshold)
     end
 
-    if s.showXPBar and not s.ultraMinimal then
+    if s.showXPBar then
         self.xpBar:Flash()
     end
 
     self:Refresh()
 
     if data.newTitle then self:OnTitleUnlock(data.newTitle) end
-
-    if s.soundOnStreak and data.streak == 10 then PlaySound(5274) end
 end
 
 function Overlay:OnStreakBreak()
