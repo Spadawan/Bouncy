@@ -310,8 +310,12 @@ function Details:_BuildStatsPanel(p)
     playerXPLabel:SetPoint("TOPLEFT", playerXPBar, "BOTTOMLEFT", 0, -2)
     p.playerXPLabel = playerXPLabel
 
+    local playerLvlLabel = MakeFont(p, 10, "OUTLINE")
+    playerLvlLabel:SetPoint("TOPLEFT", playerXPLabel, "BOTTOMLEFT", 0, -2)
+    p.playerLvlLabel = playerLvlLabel
+
     local streakLabel = MakeFont(p, 11, "OUTLINE")
-    streakLabel:SetPoint("TOPLEFT", playerXPLabel, "BOTTOMLEFT", 0, -8)
+    streakLabel:SetPoint("TOPLEFT", playerLvlLabel, "BOTTOMLEFT", 0, -8)
     p.streakLabel = streakLabel
 
     -- Next title goal
@@ -434,9 +438,17 @@ function Details:_RefreshStats(p)
         p.xpBar:Show()
         p.xpLabel:Show()
     end
-    local playerFrac = math.min(1, (prog.xp or 0) / 1000)
+    local playerLevelData = B.Leveling:GetLevelForXP(prog.xp or 0)
+    local _, pCur, pNext = B.Leveling:GetProgress(prog.xp or 0)
+    local playerFrac = 1
+    if pNext then
+        local need = math.max(1, (pNext.threshold - pCur.threshold))
+        playerFrac = math.min(1, ((prog.xp or 0) - pCur.threshold) / need)
+    end
     p.playerXPBar:SetValue(playerFrac)
     p.playerXPLabel:SetText(string.format("|cff88AAFFPlayer XP reserve:|r %s", B.FormatNum(prog.xp or 0)))
+    p.playerLvlLabel:SetText(string.format("|cff88AAFFPlayer Level:|r %d - %s",
+        playerLevelData.level or 1, playerLevelData.name or ""))
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",
         B.COLOR.STREAK, char.bestStreak or 0))
 
