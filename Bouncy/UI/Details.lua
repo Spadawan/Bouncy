@@ -900,9 +900,6 @@ function Details:_BuildCustomPanel(p)
     Checkbox("Show XP bar + level", nil,
         function() return s.showXPBarAndLevel ~= false end,
         function(v) s.showXPBarAndLevel = v end)
-    Checkbox("Show streak badge", nil,
-        function() return s.showStreak     end,
-        function(v) s.showStreak = v        end)
     y = y - 4
 
     -- ============================================================
@@ -925,7 +922,7 @@ function Details:_BuildCustomPanel(p)
         function() return s.overlayScale or 1.0 end,
         function(v) s.overlayScale = v end,
         "%.2fx")
-    Slider("XP bar vertical offset", -20, 40, 1,
+    Slider("XP bar vertical offset", -20, 150, 1,
         function() return s.xpBarOffsetY or 0 end,
         function(v) s.xpBarOffsetY = v end,
         "%.0f px")

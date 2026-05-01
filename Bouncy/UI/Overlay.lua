@@ -159,7 +159,7 @@ end
 -------------------------------------------------------------------------------
 local function CreateXPBar(parent, w)
     local bar = CreateFrame("StatusBar", nil, parent)
-    bar:SetSize(w - 12, 4)
+    bar:SetSize((w - 12) * 0.70, 6)
     bar:SetPoint("BOTTOM", parent, "BOTTOM", 0, 4)
     bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     bar:SetStatusBarColor(0.32, 0.80, 0.32)
@@ -328,7 +328,7 @@ function Overlay:Refresh()
     self.lvlText:SetText("Lv." .. lvlData.level)
 
     self.xpBar:SetValue((B.Leveling:GetProgress(prog.xp)))
-    self.badge:SetStreak(B.Tracker:GetStreak(), s.streakThreshold)
+    self.badge:Hide()
 end
 
 -------------------------------------------------------------------------------
@@ -347,14 +347,18 @@ function Overlay:OnJump(data)
         UIFrameFadeRemoveFrame(self.frame)
         self.frame:Show()
         self.frame:SetAlpha(targetAlpha)
+        self._timerToken = (self._timerToken or 0) + 1
+        local token = self._timerToken
         if self._hideTimer then self._hideTimer:Cancel() end
         self._hideTimer = C_Timer.After(OVERLAY_SHOW_DUR, function()
+            if token ~= self._timerToken then return end
             if B.Details and B.Details:IsCustomPanelVisible() then
                 self._hideTimer = nil
                 return
             end
             UIFrameFadeOut(self.frame, OVERLAY_FADE_DUR, self.frame:GetAlpha(), 0)
             self._fadeTimer = C_Timer.After(OVERLAY_FADE_DUR, function()
+                if token ~= self._timerToken then return end
                 self.frame:Hide()
                 self.frame:SetAlpha(targetAlpha)
                 self._hideTimer = nil
@@ -376,9 +380,7 @@ function Overlay:OnJump(data)
         SpawnFloating(self.jumpNum, label, col, s.plusOneSize or 16, isCombo, s.plusOneOffsetX or -54, 2, goDown)
     end
 
-    if s.showStreak then
-        self.badge:SetStreak(data.streak, s.streakThreshold)
-    end
+    self.badge:Hide()
 
     if s.showXPBarAndLevel ~= false then
         self.xpBar:Flash()
@@ -390,8 +392,7 @@ function Overlay:OnJump(data)
 end
 
 function Overlay:OnStreakBreak()
-    local s = B.DB:GetSettings()
-    self.badge:SetStreak(0, s.streakThreshold)
+    self.badge:Hide()
     self:Refresh()
 end
 

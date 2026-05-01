@@ -26,7 +26,6 @@ local DEFAULTS = {
         showJumpsLabel   = true,    -- "JUMPS" sub-label
         showXPBarAndLevel= true,    -- XP bar + level text (single toggle)
         showPlusOne      = true,    -- floating +Exp animation
-        showStreak       = true,    -- streak badge
         -- Appearance
         overlayFontSize  = 26,      -- main jump counter font size (18-40)
         jumpTextColor    = { r=1.0, g=1.0, b=1.0 },  -- jump counter color
