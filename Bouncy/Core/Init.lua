@@ -154,3 +154,4 @@ SlashCmdList["BOUNCY"] = function(msg)
         print(string.format("|cff%sBouncy|r Unknown command : \"%s\". Type |cff%s/bouncy help|r.",
             B.COLOR.TITLE, cmd, B.COLOR.LEVEL_UP))
     end
+end
