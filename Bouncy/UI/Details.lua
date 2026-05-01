@@ -40,18 +40,27 @@ local function PlayCreatureFeedAnim(p)
 end
 
 local function PlayCreatureEvolveAnim(p)
-    if not p._evolveAnim then
-        local ag = p.artwork:CreateAnimationGroup()
-        local a1 = ag:CreateAnimation("Alpha")
-        a1:SetFromAlpha(0.95); a1:SetToAlpha(0); a1:SetDuration(0.65); a1:SetOrder(1)
-        local a2 = ag:CreateAnimation("Alpha")
-        a2:SetFromAlpha(0); a2:SetToAlpha(1); a2:SetDuration(0.2); a2:SetOrder(1)
-        local a3 = ag:CreateAnimation("Alpha")
-        a3:SetFromAlpha(1); a3:SetToAlpha(0); a3:SetDuration(1.1); a3:SetOrder(2)
-        p._evolveAnim = ag
+    if not p._evolveOldFx or not p._evolveNewFx then return end
+    p._evolveOldFx:SetTexture("Interface\\AddOns\\Bouncy\\media\\Misc_Holy_01.tga")
+    p._evolveOldFx:SetVertexColor(1, 0.95, 0.45, 1)
+    p._evolveOldFx:SetAlpha(0.95)
+    p._evolveNewFx:SetTexture("Interface\\AddOns\\Bouncy\\media\\Misc_Holy_02.tga")
+    p._evolveNewFx:SetVertexColor(0.7, 0.95, 1, 1)
+    p._evolveNewFx:SetAlpha(0)
+    if not p._evolveOldAnim then
+        local oldAg = p._evolveOldFx:CreateAnimationGroup()
+        local oldFade = oldAg:CreateAnimation("Alpha")
+        oldFade:SetFromAlpha(0.95); oldFade:SetToAlpha(0); oldFade:SetDuration(0.65); oldFade:SetOrder(1)
+        p._evolveOldAnim = oldAg
+        local newAg = p._evolveNewFx:CreateAnimationGroup()
+        local ni = newAg:CreateAnimation("Alpha")
+        ni:SetFromAlpha(0); ni:SetToAlpha(1); ni:SetDuration(0.2); ni:SetOrder(1)
+        local no = newAg:CreateAnimation("Alpha")
+        no:SetFromAlpha(1); no:SetToAlpha(0); no:SetDuration(1.1); no:SetOrder(2)
+        p._evolveNewAnim = newAg
     end
-    p._evolveAnim:Stop()
-    p._evolveAnim:Play()
+    p._evolveOldAnim:Stop(); p._evolveNewAnim:Stop()
+    p._evolveOldAnim:Play(); p._evolveNewAnim:Play()
 end
 
 local function PlayCreaturePopup(p, text, color)
@@ -71,9 +80,10 @@ end
 
 local function SpawnCreatureParticles(p, evolve)
     if not p.frame or not p.artwork then return end
-    for i = 1, (evolve and 20 or 14) do
+    for i = 1, (evolve and 24 or 14) do
         local tex = p.frame:CreateTexture(nil, "OVERLAY")
         tex:SetTexture(evolve and "Interface\\Cooldown\\star4" or "Interface\\Cooldown\\star2")
+        if evolve then tex:SetVertexColor(1.0, 0.92, 0.25, 1) end
         tex:SetBlendMode("ADD")
         tex:SetSize(math.random(8, 22), math.random(8, 22))
         tex:SetPoint("CENTER", p.artwork, "CENTER", math.random(-24, 24), math.random(-18, 18))
@@ -343,7 +353,8 @@ function Details:_BuildStatsPanel(p)
     nextTitleLabel:SetPoint("TOPLEFT", streakLabel, "BOTTOMLEFT", 0, -8)
     p.nextTitleLabel = nextTitleLabel
 
-    HSep(p, -246)
+    local sep = HSep(p, -246)
+    p.statsSep = sep
 
     local statY = -258
     local function StatRow(label, yoff)
@@ -406,7 +417,7 @@ function Details:_BuildStatsPanel(p)
     p.evolveBtn:SetPoint("LEFT", p.addXPBtn, "RIGHT", 12, 0)
 
     p.typeHint = MakeFont(p, 10, "")
-    p.typeHint:SetPoint("BOTTOM", p.addXPBtn, "TOP", 44, 54)
+    p.typeHint:SetPoint("BOTTOM", p.statsSep, "TOP", 0, 18)
 
     p.typeButtons = {}
     local bx = 0
@@ -443,6 +454,13 @@ function Details:_BuildStatsPanel(p)
         popupText:SetPoint("CENTER", artwork, "CENTER", 0, 12)
     end)
     p._popupAnim = pag
+
+    local evolveOldFx = p:CreateTexture(nil, "OVERLAY")
+    evolveOldFx:SetAllPoints(artwork); evolveOldFx:SetAlpha(0)
+    p._evolveOldFx = evolveOldFx
+    local evolveNewFx = p:CreateTexture(nil, "OVERLAY")
+    evolveNewFx:SetAllPoints(artwork); evolveNewFx:SetAlpha(0)
+    p._evolveNewFx = evolveNewFx
 end
 
 function Details:_RefreshStats(p)
@@ -513,9 +531,10 @@ function Details:_RefreshStats(p)
         p.nextTitleLabel:SetText(string.format("|cff%sAll titles unlocked!|r", B.COLOR.LEVEL_UP))
     end
 
-    local totalTime = math.max(1, GetTime())
-    local jpm = (char.totalJumps or 0) / (totalTime / 60)
-    local jph = (char.totalJumps or 0) / (totalTime / 3600)
+    local sessionJumps = (B.Tracker and B.Tracker.GetSessionJumps and B.Tracker:GetSessionJumps()) or 0
+    local sessionTime = (B.Tracker and B.Tracker.GetSessionDuration and B.Tracker:GetSessionDuration()) or 1
+    local jpm = sessionJumps / (sessionTime / 60)
+    local jph = sessionJumps / (sessionTime / 3600)
     local r = p._r
     r[1]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.totalJumps)))
     r[2]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.daily.jumps or 0)))

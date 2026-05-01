@@ -27,6 +27,8 @@ local MIN_JUMP_DURATION = 0.25   -- 250ms
 local MIN_JUMP_INTERVAL = 0.65   -- 650ms
 
 local callbacks = {}
+local sessionStart = 0
+local sessionJumps = 0
 
 function Tracker:RegisterCallback(fn)
     table.insert(callbacks, fn)
@@ -103,6 +105,8 @@ end
 
 function Tracker:Init()
     streak        = 0
+    sessionStart  = GetTime()
+    sessionJumps  = 0
     lastJumpTime  = 0
     wasInAir      = false
     airborneStart = nil
@@ -117,6 +121,7 @@ function Tracker:Init()
         elseif not inAir and wasInAir then
             if airborneStart and (GetTime() - airborneStart) >= MIN_JUMP_DURATION then
                 OnJump()
+                sessionJumps = sessionJumps + 1
             end
             airborneStart = nil
         end
@@ -125,3 +130,5 @@ function Tracker:Init()
 end
 
 function Tracker:GetStreak() return streak end
+function Tracker:GetSessionJumps() return sessionJumps end
+function Tracker:GetSessionDuration() return math.max(1, GetTime() - (sessionStart or GetTime())) end
