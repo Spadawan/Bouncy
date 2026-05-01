@@ -756,7 +756,8 @@ function Details:_RefreshLeaders(p)
     local entries = {}
     for key, data in pairs(lb) do
         table.insert(entries, { key=key, name=data.name, realm=data.realm,
-                                 class=data.class, jumps=data.jumps or 0 })
+                                 class=data.class, jumps=data.jumps or 0, level=data.level or 1,
+                                 petLevel=data.petLevel or 1, bestStreak=data.bestStreak or 0 })
     end
     table.sort(entries, function(a,b) return a.jumps > b.jumps end)
 
@@ -806,12 +807,16 @@ function Details:_RefreshLeaders(p)
             jumpFS:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
             jumpFS:SetPoint("RIGHT", row, "RIGHT", -12, 0)
 
+            local lvlFS = row:CreateFontString(nil,"OVERLAY")
+            lvlFS:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            lvlFS:SetPoint("RIGHT", jumpFS, "LEFT", -10, 0)
+
             local bar = row:CreateTexture(nil,"ARTWORK")
             bar:SetHeight(3)
             bar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 50, 4)
 
             table.insert(p._leaderWidgets, {
-                row=row, nameFS=nameFS, realmFS=realmFS, jumpFS=jumpFS, bar=bar
+                row=row, nameFS=nameFS, realmFS=realmFS, jumpFS=jumpFS, lvlFS=lvlFS, bar=bar
             })
             yOff = yOff - rowH - 4
         end
@@ -841,10 +846,20 @@ function Details:_RefreshLeaders(p)
             w.realmFS:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, entry.realm or ""))
             w.jumpFS:SetText(string.format("|cff%s%s|r  |cff%sjumps|r",
                 B.COLOR.JUMP, B.FormatNum(entry.jumps), B.COLOR.DIM))
+            w.lvlFS:SetText(string.format("|cff66AAFFLv.%d|r", entry.level or 1))
             local barW = math.max(4, math.floor((entry.jumps / maxJ) * 280))
             w.bar:SetWidth(barW)
             w.bar:SetColorTexture(isSelf and 0.4 or 0.25, isSelf and 0.85 or 0.5,
                                    isSelf and 1.0 or 0.7, 0.8)
+            w.row:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText((entry.name or "?") .. " - " .. (entry.realm or ""))
+                GameTooltip:AddLine(string.format("Jump Level: %d", entry.level or 1), 0.4, 0.8, 1.0)
+                GameTooltip:AddLine(string.format("Pet Max Level: %d", entry.petLevel or 1), 0.7, 1.0, 0.7)
+                GameTooltip:AddLine(string.format("Best Streak: %d", entry.bestStreak or 0), 1.0, 0.85, 0.3)
+                GameTooltip:Show()
+            end)
+            w.row:SetScript("OnLeave", function() GameTooltip:Hide() end)
         end
     end
 end

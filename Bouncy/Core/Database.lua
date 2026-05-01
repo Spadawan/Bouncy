@@ -129,9 +129,14 @@ function DB:RecordJump(zoneName)
 
     -- Leaderboard
     if not Bouncy_DB.leaderboard[key] then
-        Bouncy_DB.leaderboard[key] = { name = char.name, realm = char.realm, class = char.class, jumps = 0 }
+        Bouncy_DB.leaderboard[key] = { name = char.name, realm = char.realm, class = char.class, jumps = 0, level = 1, petLevel = 1, bestStreak = 0 }
     end
     Bouncy_DB.leaderboard[key].jumps = char.totalJumps
+    local prog = self:GetProgression()
+    local lvlData = B.Leveling and B.Leveling.GetLevelForXP and B.Leveling:GetLevelForXP(prog.xp or 0) or { level = 1 }
+    Bouncy_DB.leaderboard[key].level = lvlData.level or 1
+    Bouncy_DB.leaderboard[key].petLevel = prog.level or 1
+    Bouncy_DB.leaderboard[key].bestStreak = char.bestStreak or 0
 end
 
 -------------------------------------------------------------------------------
@@ -143,6 +148,9 @@ function DB:RecordStreak(n)
     local char = self:EnsureChar()
     if n > (char.bestStreak or 0) then
         char.bestStreak = n
+        local key = self:CharKey()
+        Bouncy_DB.leaderboard[key] = Bouncy_DB.leaderboard[key] or { name = char.name, realm = char.realm, class = char.class, jumps = char.totalJumps or 0 }
+        Bouncy_DB.leaderboard[key].bestStreak = n
     end
 end
 
