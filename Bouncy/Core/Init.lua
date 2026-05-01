@@ -11,8 +11,9 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("CHAT_MSG_ADDON")
 
-eventFrame:SetScript("OnEvent", function(self, event, arg1)
+eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
 
     if event == "ADDON_LOADED" then
         if arg1 == B.ADDON_NAME then
@@ -24,6 +25,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         B.DB:EnsureChar()
 
         B.Tracker:Init()
+        if B.Community then B.Community:Init() end
         B.Overlay:Init()
         B.Details:Init()
         B.Config:Init()
@@ -32,10 +34,25 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             "|cff%sBouncy|r v%s loaded.  |cff%s/bouncy help|r for commands.",
             B.COLOR.TITLE, B.VERSION, B.COLOR.LEVEL_UP))
 
+        if B.Tracker and B.Community and B.Tracker.RegisterCallback then
+            B.Tracker:RegisterCallback(function(event)
+                if event == "JUMP" then
+                    B.Community:Broadcast(false)
+                end
+            end)
+        end
+
     elseif event == "PLAYER_ENTERING_WORLD" then
         -- Refresh overlay after loading screens
         if B.Overlay and B.Overlay.frame then
             B.Overlay:Refresh()
+        end
+        if B.Community then B.Community:Broadcast(true) end
+
+    elseif event == "CHAT_MSG_ADDON" then
+        local prefix, message, channel, sender = arg1, ...
+        if B.Community then
+            B.Community:OnAddonMessage(prefix, message, channel, sender)
         end
 
     elseif event == "PLAYER_LOGOUT" then
@@ -54,7 +71,9 @@ SLASH_BOUNCY1 = "/bouncy"
 SLASH_BOUNCY2 = "/bcy"
 
 SlashCmdList["BOUNCY"] = function(msg)
-    local cmd = strtrim(msg or ""):lower()
+    local raw = strtrim(msg or "")
+    local cmd, rest = raw:match("^(%S+)%s*(.-)$")
+    cmd = (cmd or ""):lower()
 
     if cmd == "" then
         B.Details:Toggle()
@@ -78,6 +97,42 @@ SlashCmdList["BOUNCY"] = function(msg)
         if B.Overlay then B.Overlay:Refresh() end
         print(string.format("|cff%sBouncy|r Character data reset.", B.COLOR.TITLE))
 
+    elseif cmd == "xp" then
+        local amount = tonumber(rest or "")
+        if not amount then
+            print(string.format("|cff%sUsage: /bouncy xp <amount>|r", B.COLOR.DIM))
+            return
+        end
+        B.DB:AddXP(math.floor(amount))
+        if B.Overlay then B.Overlay:Refresh() end
+        if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+        print(string.format("|cff%sBouncy|r Added %d XP.", B.COLOR.TITLE, math.floor(amount)))
+
+    elseif cmd == "evolve" then
+        local prog = B.DB:GetProgression()
+        if B.Leveling:CanEvolve(prog) then
+            local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
+            prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
+            prog.level = (prog.level or 1) + 1
+            if B.Overlay then B.Overlay:Refresh() end
+            if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+            print(string.format("|cff%sBouncy|r Evolved to level %d.", B.COLOR.TITLE, prog.level))
+        else
+            print(string.format("|cff%sBouncy|r Not ready to evolve yet.", B.COLOR.TITLE))
+        end
+
+    elseif cmd == "type" then
+        local wanted = rest and rest:lower() or ""
+        for _, t in ipairs(B.CREATURE_TYPES or {}) do
+            if t:lower() == wanted then
+                B.DB:SetCreatureType(t)
+                if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+                print(string.format("|cff%sBouncy|r Creature type set to %s.", B.COLOR.TITLE, t))
+                return
+            end
+        end
+        print(string.format("|cff%sUsage: /bouncy type astral|fire|water|lunar|r", B.COLOR.DIM))
+
     elseif cmd == "version" then
         print(string.format("|cff%sBouncy|r v%s", B.COLOR.TITLE, B.VERSION))
 
@@ -89,6 +144,9 @@ SlashCmdList["BOUNCY"] = function(msg)
         print(string.format("|cff%s/bouncy stats|r        Open statistics", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy config|r       Open settings", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy reset|r        Reset this character", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy xp 250|r       Add XP for testing", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy evolve|r       Force next evolution", B.COLOR.LEVEL_UP))
+        print(string.format("|cff%s/bouncy type astral|r  Set creature type", B.COLOR.LEVEL_UP))
         print(string.format("|cff%s/bouncy help|r         Show this help", B.COLOR.LEVEL_UP))
         print(string.format("|cff%sRight-click the overlay|r -> Statistics", B.COLOR.DIM))
 

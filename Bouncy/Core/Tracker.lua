@@ -27,6 +27,8 @@ local MIN_JUMP_DURATION = 0.25   -- 250ms
 local MIN_JUMP_INTERVAL = 0.65   -- 650ms
 
 local callbacks = {}
+local sessionStart = 0
+local sessionJumps = 0
 
 function Tracker:RegisterCallback(fn)
     table.insert(callbacks, fn)
@@ -82,12 +84,24 @@ local function OnJump()
     end)
 
     local mult, multColor = GetStreakMultiplier(streak)
-    local xpGained = math.floor(1 * mult)
-    local prog = B.DB:AddXP(xpGained)
+    local baseXP = math.floor(2 * mult)
+    local prog = B.DB:GetProgression()
+    local oldLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
+    local creatureLevel = prog.level or 1
+    local bonusPct = (B.Leveling and B.Leveling.GetCreatureBonusPercent and B.Leveling:GetCreatureBonusPercent(creatureLevel)) or 0
+    local bonusExact = (baseXP * (bonusPct * 0.01)) + (prog.bonusXPFraction or 0)
+    local bonusXP = math.floor(bonusExact)
+    prog.bonusXPFraction = bonusExact - bonusXP
+    local xpGained = baseXP + bonusXP
+    B.DB:AddXP(xpGained)
+    local newLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
 
     B.DB:RecordJump(zone)
-    local newLevel  = B.Leveling:Evaluate(prog)
-    local newTitle  = B.Leveling:CheckTitleUnlock(B.DB:GetChar().totalJumps)
+    local newLevel  = nil
+    local newTitle  = nil
+    if (newLvlData.level or 1) > (oldLvlData.level or 1) then
+        newTitle = { title = newLvlData.name or "New Title", color = "33FF66" }
+    end
 
     Fire("JUMP", {
         zone      = zone,
@@ -95,6 +109,8 @@ local function OnJump()
         mult      = mult,
         multColor = multColor,
         xpGained  = xpGained,
+        baseXP    = baseXP,
+        bonusXP   = bonusXP,
         prog      = prog,
         levelUp   = newLevel,
         newTitle  = newTitle,
@@ -103,6 +119,8 @@ end
 
 function Tracker:Init()
     streak        = 0
+    sessionStart  = GetTime()
+    sessionJumps  = 0
     lastJumpTime  = 0
     wasInAir      = false
     airborneStart = nil
@@ -117,6 +135,7 @@ function Tracker:Init()
         elseif not inAir and wasInAir then
             if airborneStart and (GetTime() - airborneStart) >= MIN_JUMP_DURATION then
                 OnJump()
+                sessionJumps = sessionJumps + 1
             end
             airborneStart = nil
         end
@@ -125,3 +144,5 @@ function Tracker:Init()
 end
 
 function Tracker:GetStreak() return streak end
+function Tracker:GetSessionJumps() return sessionJumps end
+function Tracker:GetSessionDuration() return math.max(1, GetTime() - (sessionStart or GetTime())) end

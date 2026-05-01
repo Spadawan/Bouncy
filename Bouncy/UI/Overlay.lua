@@ -378,9 +378,10 @@ function Overlay:OnJump(data)
 
     if s.showPlusOne then
         local isCombo = data.mult > 1
+        local bonusTxt = (data.bonusXP and data.bonusXP > 0) and string.format(" |cff66AAFF(+%d Bonus)|r", data.bonusXP) or ""
         local label = isCombo
-            and string.format("+%d Exp (x%.1f)", data.xpGained, data.mult)
-            or  string.format("+%d Exp", data.xpGained)
+            and string.format("+%d Exp%s (x%.1f)", data.xpGained, bonusTxt, data.mult)
+            or  string.format("+%d Exp%s", data.xpGained, bonusTxt)
         local col = isCombo and "FFD700" or "FFFFFF"
         local _, fy = self.frame:GetCenter()
         local goDown = fy and fy > (UIParent:GetHeight() * 0.55)

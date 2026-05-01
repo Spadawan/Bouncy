@@ -10,19 +10,72 @@ _G.Bouncy = B
 B.ADDON_NAME = "Bouncy"
 B.VERSION    = "1.0.0"
 
+B.CREATURE_TYPES = {
+    "Astral",
+    "Fire",
+    "Water",
+    "Lunar",
+    "Electric",
+}
+
+local function BuildCreatureLevelSet(prefix)
+    local out = {}
+    for i = 1, 6 do
+        out[i] = {
+            level = i,
+            name = string.format("%s Evolution %d", prefix, i),
+            threshold = B.LEVELS and B.LEVELS[i] and B.LEVELS[i].threshold or 0,
+            artwork = string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", prefix, i),
+        }
+    end
+    return out
+end
+
 -------------------------------------------------------------------------------
 -- Bunny evolution stages (XP-based)
 -- artwork = placeholder — replace with your own TGA/BLP per level
 -------------------------------------------------------------------------------
-B.LEVELS = {
-    { level = 1, name = "Fluffy Newcomer",  threshold = 0,     artwork = "Interface\\AddOns\\Bouncy\\media\\bunny1.tga" },
-    { level = 2, name = "Hoppling",         threshold = 100,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny2.tga" },
-    { level = 3, name = "Agile Leaper",     threshold = 500,   artwork = "Interface\\AddOns\\Bouncy\\media\\bunny3.tga" },
-    { level = 4, name = "Acrobat",          threshold = 1500,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny4.tga" },
-    { level = 5, name = "Jump Champion",    threshold = 4000,  artwork = "Interface\\AddOns\\Bouncy\\media\\bunny5.tga" },
-    { level = 6, name = "Master Bouncer",   threshold = 10000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny6.tga" },
-    { level = 7, name = "Jump Legend",      threshold = 25000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny7.tga" },
-    { level = 8, name = "Bounce God",       threshold = 60000, artwork = "Interface\\AddOns\\Bouncy\\media\\bunny8.tga" },
+local PLAYER_TITLE_BY_MILESTONE = {
+    [1]="First Hop",[5]="Light Feet",[10]="Springstep",[15]="Airborne",[20]="High Hopper",
+    [25]="Bound Runner",[30]="Leap Adept",[35]="Momentum Keeper",[40]="Sky Strider",
+    [45]="Vault Expert",[50]="Jump Veteran",[55]="Arc Master",[60]="Drift Walker",
+    [65]="Elevation Knight",[70]="Gravity Challenger",[75]="Cloud Chaser",[80]="Horizon Leaper",
+    [85]="Void Jumper",[90]="Apex Bounder",[95]="Zenith Strider",[100]="Lord of the Leap",
+}
+
+local function BuildPlayerLevels()
+    local out = {}
+    local threshold = 0
+    local title = PLAYER_TITLE_BY_MILESTONE[1]
+    local earlyNeeds = { [1]=100, [2]=200, [3]=350, [4]=550, [5]=750 }
+    local targetNeed99 = 15000
+    local growthAfterEarly = math.pow(targetNeed99 / earlyNeeds[5], 1 / (99 - 5))
+    for lvl = 1, 100 do
+        if PLAYER_TITLE_BY_MILESTONE[lvl] then title = PLAYER_TITLE_BY_MILESTONE[lvl] end
+        local artIdx = math.min(8, math.max(1, math.floor((lvl - 1) / 12) + 1))
+        out[#out + 1] = {
+            level = lvl,
+            name = title,
+            threshold = threshold,
+            artwork = string.format("Interface\\AddOns\\Bouncy\\media\\bunny%d.tga", artIdx),
+        }
+        local need
+        if earlyNeeds[lvl] then
+            need = earlyNeeds[lvl]
+        else
+            need = math.floor(earlyNeeds[5] * (growthAfterEarly ^ (lvl - 5)) + 0.5)
+        end
+        threshold = threshold + need
+    end
+    return out
+end
+
+B.LEVELS = BuildPlayerLevels()
+
+B.CREATURE_LEVELS = {
+    Astral = BuildCreatureLevelSet("Astral"),
+    Fire = BuildCreatureLevelSet("Fire"),
+    Water = BuildCreatureLevelSet("Water"),
 }
 
 -------------------------------------------------------------------------------
@@ -69,14 +122,17 @@ end
 -- Streak multipliers
 -------------------------------------------------------------------------------
 B.STREAK_MULTIPLIERS = {
-    { min = 1,   max = 2,   mult = 1.0, color = "ffffff" },
-    { min = 3,   max = 5,   mult = 1.5, color = "00ff88" },
-    { min = 6,   max = 9,   mult = 2.0, color = "ffcc00" },
-    { min = 10,  max = 999, mult = 3.0, color = "ff6600" },
+    { min = 1,   max = 1,   mult = 1.0, color = "ffffff" },
+    { min = 2,   max = 3,   mult = 2.0, color = "00ff88" },
+    { min = 4,   max = 6,   mult = 3.0, color = "ffcc00" },
+    { min = 7,   max = 10,  mult = 4.0, color = "ff9900" },
+    { min = 11,  max = 14,  mult = 5.0, color = "ff6600" },
+    { min = 15,  max = 24,  mult = 7.0, color = "cc33ff" },
+    { min = 25,  max = 999, mult = 10.0, color = "66ccff" },
 }
 
 -- Streak window: max seconds between jumps to keep the combo alive
-B.STREAK_WINDOW = 1.2
+B.STREAK_WINDOW = 2.2
 
 -------------------------------------------------------------------------------
 -- Colors

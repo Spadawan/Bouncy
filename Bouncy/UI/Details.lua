@@ -20,6 +20,106 @@ local PANEL_CUSTOM   = 4
 local activePanel    = PANEL_STATS
 local activeCharKey  = nil   -- which char is selected in zones panel
 
+local function PlayCreatureFeedAnim(p)
+    if not p._feedAnim then
+        local ag = p.artwork:CreateAnimationGroup()
+        local s1 = ag:CreateAnimation("Scale")
+        s1:SetOrigin("CENTER", 0, 0); s1:SetScale(1.05, 1.05); s1:SetDuration(0.12); s1:SetOrder(1)
+        local t1 = ag:CreateAnimation("Translation")
+        t1:SetOffset(2, 0); t1:SetDuration(0.05); t1:SetOrder(1)
+        local t2 = ag:CreateAnimation("Translation")
+        t2:SetOffset(-4, 0); t2:SetDuration(0.08); t2:SetOrder(2)
+        local t3 = ag:CreateAnimation("Translation")
+        t3:SetOffset(2, 0); t3:SetDuration(0.05); t3:SetOrder(3)
+        local s2 = ag:CreateAnimation("Scale")
+        s2:SetOrigin("CENTER", 0, 0); s2:SetScale(1 / 1.05, 1 / 1.05); s2:SetDuration(0.18); s2:SetOrder(2)
+        p._feedAnim = ag
+    end
+    p._feedAnim:Stop()
+    p._feedAnim:Play()
+end
+
+local function PlayCreatureEvolveAnim(p)
+    if not p._evolveOldFx or not p._evolveNewFx then return end
+    p._evolveOldFx:SetTexture("Interface\\AddOns\\Bouncy\\media\\Misc_Holy_01.tga")
+    p._evolveOldFx:SetVertexColor(1, 0.95, 0.45, 1)
+    p._evolveOldFx:SetAlpha(0.95)
+    p._evolveNewFx:SetTexture("Interface\\AddOns\\Bouncy\\media\\Misc_Holy_02.tga")
+    p._evolveNewFx:SetVertexColor(0.7, 0.95, 1, 1)
+    p._evolveNewFx:SetAlpha(0)
+    if not p._evolveOldAnim then
+        local oldAg = p._evolveOldFx:CreateAnimationGroup()
+        local oldFade = oldAg:CreateAnimation("Alpha")
+        oldFade:SetFromAlpha(0.95); oldFade:SetToAlpha(0); oldFade:SetDuration(0.65); oldFade:SetOrder(1)
+        oldAg:SetScript("OnFinished", function() if p._evolveOldFx then p._evolveOldFx:SetAlpha(0) end end)
+        p._evolveOldAnim = oldAg
+        local newAg = p._evolveNewFx:CreateAnimationGroup()
+        local ni = newAg:CreateAnimation("Alpha")
+        ni:SetFromAlpha(0); ni:SetToAlpha(1); ni:SetDuration(0.2); ni:SetOrder(1)
+        local no = newAg:CreateAnimation("Alpha")
+        no:SetFromAlpha(1); no:SetToAlpha(0); no:SetDuration(1.1); no:SetOrder(2)
+        newAg:SetScript("OnFinished", function() if p._evolveNewFx then p._evolveNewFx:SetAlpha(0) end end)
+        p._evolveNewAnim = newAg
+    end
+    p._evolveOldAnim:Stop(); p._evolveNewAnim:Stop()
+    p._evolveOldAnim:Play(); p._evolveNewAnim:Play()
+end
+
+local function PlayCreaturePopup(p, text, color)
+    if not p.popupText then return end
+    p.popupText:SetText(text or "")
+    if color then p.popupText:SetTextColor(color[1], color[2], color[3]) end
+    p.popupText:SetAlpha(1)
+    p.popupText:ClearAllPoints()
+    p.popupText:SetPoint("CENTER", p.artwork, "CENTER", 0, 12)
+    if p._popupAnim then p._popupAnim:Stop(); p._popupAnim:Play() end
+    C_Timer.After(1.2, function()
+        if p and p.popupText then
+            p.popupText:SetAlpha(0)
+        end
+    end)
+end
+
+local function PlayCreatureLevelupShine(p)
+    if not p._levelupShineFx then return end
+    p._levelupShineFx:SetTexture(p.artwork:GetTexture())
+    p._levelupShineFx:SetVertexColor(1.0, 0.92, 0.25, 1)
+    p._levelupShineFx:SetAlpha(0)
+    if not p._levelupShineAnim then
+        local ag = p._levelupShineFx:CreateAnimationGroup()
+        local fi = ag:CreateAnimation("Alpha")
+        fi:SetFromAlpha(0); fi:SetToAlpha(0.78); fi:SetDuration(0.12); fi:SetOrder(1)
+        local fo = ag:CreateAnimation("Alpha")
+        fo:SetFromAlpha(0.78); fo:SetToAlpha(0); fo:SetDuration(0.9); fo:SetOrder(2)
+        p._levelupShineAnim = ag
+    end
+    p._levelupShineAnim:Stop()
+    p._levelupShineAnim:Play()
+end
+
+local function SpawnCreatureParticles(p, evolve)
+    if not p.frame or not p.artwork then return end
+    for i = 1, (evolve and 24 or 14) do
+        local tex = p.frame:CreateTexture(nil, "OVERLAY")
+        tex:SetTexture(evolve and "Interface\\Cooldown\\star4" or "Interface\\Cooldown\\star2")
+        if evolve then tex:SetVertexColor(1.0, 0.92, 0.25, 1) end
+        tex:SetBlendMode("ADD")
+        tex:SetSize(math.random(8, 22), math.random(8, 22))
+        tex:SetPoint("CENTER", p.artwork, "CENTER", math.random(-24, 24), math.random(-18, 18))
+        tex:SetAlpha(0)
+        local ag = tex:CreateAnimationGroup()
+        local fi = ag:CreateAnimation("Alpha")
+        fi:SetFromAlpha(0); fi:SetToAlpha(0.9); fi:SetDuration(0.1); fi:SetOrder(1)
+        local tr = ag:CreateAnimation("Translation")
+        tr:SetOffset(math.random(-55, 55), evolve and math.random(30, 90) or -math.random(20, 65))
+        tr:SetDuration(evolve and 1.0 or 0.7); tr:SetOrder(1)
+        local fo = ag:CreateAnimation("Alpha")
+        fo:SetFromAlpha(0.9); fo:SetToAlpha(0); fo:SetDuration(evolve and 1.0 or 0.8); fo:SetOrder(2)
+        ag:SetScript("OnFinished", function() tex:SetAlpha(0); tex:Hide(); tex:SetTexture(nil) end)
+        ag:Play()
+    end
+end
+
 -------------------------------------------------------------------------------
 -- Helpers
 -------------------------------------------------------------------------------
@@ -208,6 +308,19 @@ function Details:_BuildStatsPanel(p)
     artwork:SetTexture("Interface\\Icons\\Ability_Hunter_BeastCall")
     artwork:SetTexCoord(0.06, 0.94, 0.06, 0.94)
     p.artwork = artwork
+    local eggFrame = CreateFrame("Frame", nil, p, "BackdropTemplate")
+    eggFrame:SetSize(84, 84)
+    eggFrame:SetPoint("CENTER", artwork, "CENTER", 0, 0)
+    eggFrame:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left=3, right=3, top=3, bottom=3 },
+    })
+    eggFrame:SetBackdropColor(0.03, 0.03, 0.08, 0.85)
+    eggFrame:SetBackdropBorderColor(0.5, 0.7, 1.0, 0.75)
+    eggFrame:Hide()
+    p.eggFrame = eggFrame
 
     local lvlName = MakeFont(p, 15, "OUTLINE")
     lvlName:SetPoint("TOPLEFT", artwork, "TOPRIGHT", 18, -6)
@@ -232,8 +345,26 @@ function Details:_BuildStatsPanel(p)
     xpLabel:SetPoint("TOPLEFT", xpBar, "BOTTOMLEFT", 0, -2)
     p.xpLabel = xpLabel
 
+    local playerXPBar = CreateFrame("StatusBar", nil, p)
+    playerXPBar:SetSize(230, 10)
+    playerXPBar:SetPoint("TOPLEFT", xpLabel, "BOTTOMLEFT", 0, -8)
+    playerXPBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    playerXPBar:SetStatusBarColor(0.35, 0.55, 1.0)
+    playerXPBar:SetMinMaxValues(0, 1)
+    local pbg = playerXPBar:CreateTexture(nil, "BACKGROUND")
+    pbg:SetAllPoints(); pbg:SetColorTexture(0.10, 0.10, 0.10, 0.80)
+    p.playerXPBar = playerXPBar
+
+    local playerXPLabel = MakeFont(p, 10, "")
+    playerXPLabel:SetPoint("TOPLEFT", playerXPBar, "BOTTOMLEFT", 0, -2)
+    p.playerXPLabel = playerXPLabel
+
+    local playerLvlLabel = MakeFont(p, 10, "OUTLINE")
+    playerLvlLabel:SetPoint("TOPLEFT", playerXPLabel, "BOTTOMLEFT", 0, -2)
+    p.playerLvlLabel = playerLvlLabel
+
     local streakLabel = MakeFont(p, 11, "OUTLINE")
-    streakLabel:SetPoint("TOPLEFT", xpLabel, "BOTTOMLEFT", 0, -8)
+    streakLabel:SetPoint("TOPLEFT", playerLvlLabel, "BOTTOMLEFT", 0, -8)
     p.streakLabel = streakLabel
 
     -- Next title goal
@@ -241,9 +372,10 @@ function Details:_BuildStatsPanel(p)
     nextTitleLabel:SetPoint("TOPLEFT", streakLabel, "BOTTOMLEFT", 0, -8)
     p.nextTitleLabel = nextTitleLabel
 
-    HSep(p, -152)
+    local sep = HSep(p, -284)
+    p.statsSep = sep
 
-    local statY = -164
+    local statY = -296
     local function StatRow(label, yoff)
         local lbl = MakeFont(p, 11, "")
         lbl:SetPoint("TOPLEFT", p, "TOPLEFT", 20, yoff)
@@ -256,8 +388,98 @@ function Details:_BuildStatsPanel(p)
     local _, r1 = StatRow("Jumps - Total",  statY)
     local _, r2 = StatRow("Jumps - Today",  statY - 22)
     local _, r3 = StatRow("Jumps - Week",   statY - 44)
+    local _, r4 = StatRow("Jumps / Minute", statY - 66)
+    local _, r5 = StatRow("Jumps / Hour",   statY - 88)
 
-    p._r = { r1, r2, r3 }
+    p._r = { r1, r2, r3, r4, r5 }
+
+    local function MakeSmallButton(label, width, onClick)
+        local btn = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+        btn:SetSize(width, 22)
+        btn:SetText(label)
+        btn:SetScript("OnClick", onClick)
+        return btn
+    end
+
+    p.evolveBtn = MakeSmallButton("Feed", 90, function()
+        local prog = B.DB:GetProgression()
+        if B.Leveling:CanEvolve(prog) then
+            local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
+            prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
+            prog.level = (prog.level or 1) + 1
+            PlayCreatureEvolveAnim(p)
+            PlayCreatureLevelupShine(p)
+            SpawnCreatureParticles(p, true)
+            PlayCreaturePopup(p, "Level up!", {0.4, 1.0, 0.3})
+            if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\LevelUp.ogg", "SFX") end
+        else
+            local feedAmount = 50
+            if (prog.xp or 0) >= feedAmount then
+                prog.xp = prog.xp - feedAmount
+                prog.creatureXP = (prog.creatureXP or 0) + feedAmount
+                local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
+                PlayCreatureFeedAnim(p)
+                if autoLevel then PlayCreatureLevelupShine(p) end
+                SpawnCreatureParticles(p, false)
+                PlayCreaturePopup(p, autoLevel and "Level up!" or "+50 EXP", {0.4, 1.0, 0.3})
+                if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\iEating1.ogg", "SFX") end
+            else
+                PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
+            end
+        end
+        Details:Refresh()
+    end)
+    p.evolveBtn:SetPoint("TOP", artwork, "BOTTOM", 0, -8)
+
+    p.typeHint = MakeFont(p, 10, "")
+    p.typeHint:SetPoint("BOTTOM", p.statsSep, "TOP", 0, 34)
+
+    p.typeButtons = {}
+    local bx = 0
+    for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
+        local btn = MakeSmallButton(creatureType, 72, function()
+            if creatureType ~= "Astral" and creatureType ~= "Fire" and creatureType ~= "Water" then return end
+            B.DB:SetCreatureType(creatureType)
+            Details:Refresh()
+        end)
+        btn:SetPoint("BOTTOMLEFT", p.typeHint, "TOPLEFT", bx, 6)
+        bx = bx + 76
+        table.insert(p.typeButtons, btn)
+    end
+    local spacing = 76
+    local startX = -math.floor(((#p.typeButtons - 1) * spacing) / 2)
+    for i, btn in ipairs(p.typeButtons) do
+        btn:ClearAllPoints()
+        btn:SetPoint("TOP", p.typeHint, "BOTTOM", startX + ((i - 1) * spacing), -6)
+    end
+
+    local popupText = MakeFont(p, 12, "OUTLINE")
+    popupText:SetPoint("CENTER", artwork, "CENTER", 0, 12)
+    popupText:SetAlpha(0)
+    p.popupText = popupText
+    local pag = popupText:CreateAnimationGroup()
+    local hold = pag:CreateAnimation("Alpha")
+    hold:SetFromAlpha(1); hold:SetToAlpha(1); hold:SetDuration(0.25); hold:SetOrder(1)
+    local fade = pag:CreateAnimation("Alpha")
+    fade:SetFromAlpha(1); fade:SetToAlpha(0); fade:SetDuration(0.8); fade:SetOrder(2)
+    local rise = pag:CreateAnimation("Translation")
+    rise:SetOffset(0, 22); rise:SetDuration(1.05); rise:SetOrder(1)
+    pag:SetScript("OnFinished", function()
+        popupText:SetAlpha(0)
+        popupText:ClearAllPoints()
+        popupText:SetPoint("CENTER", artwork, "CENTER", 0, 12)
+    end)
+    p._popupAnim = pag
+
+    local evolveOldFx = p:CreateTexture(nil, "OVERLAY")
+    evolveOldFx:SetAllPoints(artwork); evolveOldFx:SetAlpha(0)
+    p._evolveOldFx = evolveOldFx
+    local evolveNewFx = p:CreateTexture(nil, "OVERLAY")
+    evolveNewFx:SetAllPoints(artwork); evolveNewFx:SetAlpha(0)
+    p._evolveNewFx = evolveNewFx
+    local levelupFx = p:CreateTexture(nil, "OVERLAY")
+    levelupFx:SetAllPoints(artwork); levelupFx:SetAlpha(0)
+    p._levelupShineFx = levelupFx
 end
 
 function Details:_RefreshStats(p)
@@ -265,41 +487,113 @@ function Details:_RefreshStats(p)
     if not char then return end
     local prog = B.DB:GetProgression()
 
-    local lvlData = B.Leveling:GetLevelForXP(prog.xp)
-    local frac    = B.Leveling:GetProgress(prog.xp)
-    p.artwork:SetTexture(lvlData.artwork)
-    p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s",
-        B.COLOR.LEVEL_UP, lvlData.level, lvlData.name))
-    p.xpBar:SetValue(frac)
-    p.xpLabel:SetText(B.Leveling:FormatXP(prog.xp))
+    local creatureLvl = prog.level or 1
+    local stage = B.Leveling:GetCreatureStage(creatureLvl)
+    local reqXP = B.Leveling:GetCreatureXPRequirement(creatureLvl)
+    local frac = math.min(1, (prog.creatureXP or 0) / math.max(1, reqXP))
+    local creatureLocked = not prog.creatureType
+    if creatureLocked then
+        p.artwork:SetTexture("Interface\\Icons\\INV_Egg_02")
+        p.artwork:SetSize(64, 64)
+        p.artwork:ClearAllPoints()
+        p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 48, -38)
+        p.eggFrame:Show()
+        p.lvlName:SetText("|cffffcc00Creature not selected|r")
+        p.evolveBtn:Hide()
+        p.xpBar:Hide()
+        p.xpLabel:Hide()
+    else
+        p.eggFrame:Hide()
+        p.artwork:SetSize(128, 128)
+        p.artwork:ClearAllPoints()
+        p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
+        local texturePrefix = ((prog.creatureType == "Fire" or prog.creatureType == "Water") and prog.creatureType) or "Astral"
+        p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", texturePrefix, stage.art))
+        local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1)
+        local creatureLabel = B.Leveling:GetCreatureLabel(prog.creatureType, creatureLvl)
+        p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Bonus XP|r",
+            B.COLOR.LEVEL_UP, creatureLvl, creatureLabel, bonusPct))
+        p.evolveBtn:Show()
+        p.xpBar:SetValue(frac)
+        p.xpLabel:SetText(string.format("|cff%s%s|r / |cff%s%s|r creature XP",
+            B.COLOR.XP, B.FormatNum(prog.creatureXP or 0), B.COLOR.DIM, B.FormatNum(reqXP)))
+        p.xpBar:Show()
+        p.xpLabel:Show()
+    end
+    local playerLevelData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
+    local _, pCur, pNext = B.Leveling:GetProgress(prog.xp or 0)
+    local playerFrac = 1
+    local playerNeed = 0
+    local playerInto = 0
+    if pNext then
+        playerNeed = math.max(1, (pNext.threshold - pCur.threshold))
+        playerInto = math.max(0, (prog.xp or 0) - pCur.threshold)
+        playerFrac = math.min(1, playerInto / playerNeed)
+    end
+    p.playerXPBar:SetValue(playerFrac)
+    if pNext then
+        p.playerXPLabel:SetText(string.format("|cff88AAFF%s|r / |cff%s%s|r XP",
+            B.FormatNum(playerInto), B.COLOR.DIM, B.FormatNum(playerNeed)))
+    else
+        p.playerXPLabel:SetText(string.format("|cff%sMAX LEVEL|r", B.COLOR.LEVEL_UP))
+    end
+    p.playerLvlLabel:SetText(string.format("|cff88AAFFPlayer Level:|r %d - %s",
+        playerLevelData.level or 1, playerLevelData.name or ""))
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",
         B.COLOR.STREAK, char.bestStreak or 0))
 
-    -- Current title
-    local curTitle = B.GetTitle(char.totalJumps)
-    if curTitle then
-        p.titleLine:SetText(string.format("Title: |cff%s%s|r",
-            curTitle.color, curTitle.title))
+    -- Current title (level-based only)
+    p.titleLine:SetText(string.format("Title: |cff33FF66%s|r", playerLevelData.name or "First Hop"))
+
+    -- Next title goal (level-based only)
+    local nextTitleName = nil
+    for _, lvl in ipairs(B.LEVELS or {}) do
+        if (lvl.level or 1) > (playerLevelData.level or 1) and lvl.name ~= playerLevelData.name then
+            nextTitleName = lvl.name
+            break
+        end
+    end
+    if nextTitleName then
+        p.nextTitleLabel:SetText(string.format("|cff%sNext: |r|cff33FF66%s|r", B.COLOR.DIM, nextTitleName))
     else
-        p.titleLine:SetText(string.format("|cff%sNo title yet|r", B.COLOR.DIM))
+        p.nextTitleLabel:SetText(string.format("|cff%sTop title reached!|r", B.COLOR.LEVEL_UP))
     end
 
-    -- Next title goal
-    local nextTitle = B.GetNextTitle(char.totalJumps)
-    if nextTitle then
-        local remaining = nextTitle.jumps - char.totalJumps
-        p.nextTitleLabel:SetText(string.format(
-            "|cff%sNext: |r|cff%s%s|r |cff%s(%s jumps away)|r",
-            B.COLOR.DIM, nextTitle.color, nextTitle.title,
-            B.COLOR.DIM, B.FormatNum(remaining)))
-    else
-        p.nextTitleLabel:SetText(string.format("|cff%sAll titles unlocked!|r", B.COLOR.LEVEL_UP))
-    end
-
+    local sessionJumps = (B.Tracker and B.Tracker.GetSessionJumps and B.Tracker:GetSessionJumps()) or 0
+    local sessionTime = (B.Tracker and B.Tracker.GetSessionDuration and B.Tracker:GetSessionDuration()) or 1
+    local jpm = sessionJumps / (sessionTime / 60)
+    local jph = sessionJumps / (sessionTime / 3600)
     local r = p._r
     r[1]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.totalJumps)))
     r[2]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.daily.jumps or 0)))
     r[3]:SetText(string.format("|cff%s%s|r", B.COLOR.JUMP, B.FormatNum(char.weekly.jumps or 0)))
+    r[4]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jpm))
+    r[5]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jph))
+
+    local playerLevel = (playerLevelData and playerLevelData.level) or 1
+    local shouldChooseType = (playerLevel >= 2 and not prog.creatureType)
+    p.typeHint:SetShown((prog.creatureType ~= nil) or shouldChooseType)
+    if shouldChooseType then
+        p.typeHint:SetText("|cffffcc00Select a creature type (unlocked at player level 2).|r")
+    elseif creatureLocked then
+        p.typeHint:SetText("|cffff8800Reach player level 2 to choose your creature type.|r")
+    elseif prog.creatureType then
+        p.typeHint:SetText("")
+    end
+    for _, btn in ipairs(p.typeButtons or {}) do
+        btn:SetShown(shouldChooseType)
+        local label = btn:GetText()
+        local enabled = (label == "Astral" or label == "Fire" or label == "Water")
+        btn:SetEnabled(enabled)
+        if enabled then
+            btn:GetFontString():SetTextColor(1, 1, 1)
+        else
+            btn:GetFontString():SetTextColor(0.45, 0.45, 0.45)
+        end
+    end
+    if prog.creatureType then
+        p.evolveBtn:SetText(B.Leveling:CanEvolve(prog) and "Evolve" or "Feed")
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -495,11 +789,21 @@ function Details:_BuildLeaderPanel(p)
 end
 
 function Details:_RefreshLeaders(p)
+    local function JumpTitleForLevel(level)
+        local best = (B.LEVELS[1] and B.LEVELS[1].name) or "First Hop"
+        for _, l in ipairs(B.LEVELS or {}) do
+            if (level or 1) >= (l.level or 1) then best = l.name or best end
+        end
+        return best
+    end
+
     local lb = B.DB:GetLeaderboard()
     local entries = {}
     for key, data in pairs(lb) do
         table.insert(entries, { key=key, name=data.name, realm=data.realm,
-                                 class=data.class, jumps=data.jumps or 0 })
+                                 class=data.class, jumps=data.jumps or 0, level=data.level or 1,
+                                 petLevel=data.petLevel or 1, bestStreak=data.bestStreak or 0,
+                                 jumpTitle=JumpTitleForLevel(data.level or 1) })
     end
     table.sort(entries, function(a,b) return a.jumps > b.jumps end)
 
@@ -549,12 +853,16 @@ function Details:_RefreshLeaders(p)
             jumpFS:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
             jumpFS:SetPoint("RIGHT", row, "RIGHT", -12, 0)
 
+            local lvlFS = row:CreateFontString(nil,"OVERLAY")
+            lvlFS:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+            lvlFS:SetPoint("RIGHT", jumpFS, "LEFT", -10, 0)
+
             local bar = row:CreateTexture(nil,"ARTWORK")
             bar:SetHeight(3)
             bar:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 50, 4)
 
             table.insert(p._leaderWidgets, {
-                row=row, nameFS=nameFS, realmFS=realmFS, jumpFS=jumpFS, bar=bar
+                row=row, nameFS=nameFS, realmFS=realmFS, jumpFS=jumpFS, lvlFS=lvlFS, bar=bar
             })
             yOff = yOff - rowH - 4
         end
@@ -584,10 +892,21 @@ function Details:_RefreshLeaders(p)
             w.realmFS:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, entry.realm or ""))
             w.jumpFS:SetText(string.format("|cff%s%s|r  |cff%sjumps|r",
                 B.COLOR.JUMP, B.FormatNum(entry.jumps), B.COLOR.DIM))
+            w.lvlFS:SetText(string.format("|cff66AAFFLv.%d|r", entry.level or 1))
             local barW = math.max(4, math.floor((entry.jumps / maxJ) * 280))
             w.bar:SetWidth(barW)
             w.bar:SetColorTexture(isSelf and 0.4 or 0.25, isSelf and 0.85 or 0.5,
                                    isSelf and 1.0 or 0.7, 0.8)
+            w.row:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText((entry.name or "?") .. " - " .. (entry.realm or ""))
+                GameTooltip:AddLine(string.format("Jump Level: %d", entry.level or 1), 0.4, 0.8, 1.0)
+                GameTooltip:AddLine(string.format("Title: %s", entry.jumpTitle or "First Hop"), 0.7, 0.9, 1.0)
+                GameTooltip:AddLine(string.format("Pet Max Level: %d", entry.petLevel or 1), 0.7, 1.0, 0.7)
+                GameTooltip:AddLine(string.format("Best Streak: %d", entry.bestStreak or 0), 1.0, 0.85, 0.3)
+                GameTooltip:Show()
+            end)
+            w.row:SetScript("OnLeave", function() GameTooltip:Hide() end)
         end
     end
 end
