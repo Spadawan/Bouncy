@@ -163,17 +163,6 @@ local function CreateTab(parent, label, idx, x)
         end
     end
 
-    function btn:SetLocked(locked)
-        self._locked = locked and true or false
-        self:EnableMouse(not self._locked)
-        if self._locked then
-            self:SetBackdropColor(0.03, 0.03, 0.06, 0.92)
-            self:SetBackdropBorderColor(0.18, 0.18, 0.22, 0.7)
-            self.label:SetTextColor(0.38, 0.38, 0.40)
-        else
-            self:SetActive(false)
-        end
-    end
     btn:SetActive(false)
     return btn
 end
@@ -298,26 +287,11 @@ end
 -------------------------------------------------------------------------------
 -- Panel switcher
 -------------------------------------------------------------------------------
-function Details:_UpdateLeaderboardTabLock()
-    local tab = self.tabs and self.tabs[PANEL_LEADERS]
-    if not tab then return true end
-    local joined = (B.Community and B.Community.IsJoined and B.Community:IsJoined()) and true or false
-    tab:SetLocked(not joined)
-    return joined
-end
-
 function Details:ShowPanel(idx)
-    local leaderboardJoined = self:_UpdateLeaderboardTabLock()
-    if idx == PANEL_LEADERS and not leaderboardJoined then
-        idx = PANEL_STATS
-    end
     activePanel = idx
     for i, p in ipairs(self.panels) do
         p:SetShown(i == idx)
         self.tabs[i]:SetActive(i == idx)
-        if self.tabs[i]._locked and i ~= idx then
-            self.tabs[i]:SetLocked(true)
-        end
     end
     if B.Overlay and B.Overlay.frame and activePanel == PANEL_CUSTOM then
         B.Overlay.frame:Show()
@@ -830,8 +804,9 @@ function Details:_BuildLeaderPanel(p)
 end
 
 function Details:_RefreshLeaders(p)
+    local joined = (B.Community and B.Community.IsJoined and B.Community:IsJoined()) and true or false
     if p.channelBtn and B.Community then
-        p.channelBtn:SetText(B.Community:IsJoined() and "Leave Leaderboard" or "Join Leaderboard")
+        p.channelBtn:SetText(joined and "Leave Leaderboard" or "Join Leaderboard")
     end
     local function JumpTitleForLevel(level)
         local best = (B.LEVELS[1] and B.LEVELS[1].name) or "First Hop"
@@ -852,7 +827,19 @@ function Details:_RefreshLeaders(p)
     table.sort(entries, function(a,b) return a.jumps > b.jumps end)
 
     local content = p.leaderContent
+    if p._leaderLockedText then
+        p._leaderLockedText:SetShown(not joined)
+    end
     local maxJ    = (entries[1] and entries[1].jumps) or 1
+
+    if not p._leaderLockedText then
+        local locked = content:CreateFontString(nil, "OVERLAY")
+        locked:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        locked:SetPoint("TOP", content, "TOP", 0, -42)
+        locked:SetText("|cff999999Join Leaderboard to view channel rankings.|r")
+        locked:Hide()
+        p._leaderLockedText = locked
+    end
 
     -------- Rebuild rows only when entry count changes --------
     if p._leaderCount ~= #entries then
@@ -926,13 +913,15 @@ function Details:_RefreshLeaders(p)
         local entry = entries[rank]
         if entry then
             local isSelf = (entry.key == selfKey)
+            local alpha = joined and 0.92 or 0.45
             w.row:SetBackdropColor(isSelf and 0.08 or 0.04, isSelf and 0.12 or 0.04,
-                                   isSelf and 0.30 or 0.10, 0.92)
+                                   isSelf and 0.30 or 0.10, alpha)
             w.row:SetBackdropBorderColor(isSelf and 0.5 or 0.2, isSelf and 0.8 or 0.3,
                                          isSelf and 1.0 or 0.5, 0.7)
             local nameHex = ClassColorHex(entry.class)
+            local displayHex = joined and nameHex or "777777"
             w.nameFS:SetText(string.format("|cff%s%s|r",
-                nameHex, entry.name or "?"))
+                displayHex, entry.name or "?"))
             w.realmFS:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, entry.realm or ""))
             w.jumpFS:SetText(string.format("|cff%s%s|r  |cff%sjumps|r",
                 B.COLOR.JUMP, B.FormatNum(entry.jumps), B.COLOR.DIM))
@@ -942,6 +931,7 @@ function Details:_RefreshLeaders(p)
             w.bar:SetColorTexture(isSelf and 0.4 or 0.25, isSelf and 0.85 or 0.5,
                                    isSelf and 1.0 or 0.7, 0.8)
             w.row:SetScript("OnEnter", function(self)
+                if not joined then return end
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetText((entry.name or "?") .. " - " .. (entry.realm or ""))
                 GameTooltip:AddLine(string.format("Jump Level: %d", entry.level or 1), 0.4, 0.8, 1.0)
@@ -1350,11 +1340,6 @@ function Details:_BuildCustomPanel(p)
 end
 function Details:Refresh()
     if not self.frame or not self.frame:IsShown() then return end
-    local joined = self:_UpdateLeaderboardTabLock()
-    if activePanel == PANEL_LEADERS and not joined then
-        self:ShowPanel(PANEL_STATS)
-        return
-    end
     if activePanel == PANEL_STATS then
         self:_RefreshStats(self.panels[PANEL_STATS])
     elseif activePanel == PANEL_ZONES then
