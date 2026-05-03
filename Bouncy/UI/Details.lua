@@ -836,9 +836,19 @@ function Details:_RefreshLeaders(p)
         local locked = content:CreateFontString(nil, "OVERLAY")
         locked:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
         locked:SetPoint("TOP", content, "TOP", 0, -42)
-        locked:SetText("|cff999999Join Leaderboard to view channel rankings.|r")
+        locked:SetText("|cff999999Join the leaderboard channel to load rankings. Use the button above to join or leave.|r")
         locked:Hide()
         p._leaderLockedText = locked
+    end
+
+    if not joined then
+        if p._leaderWidgets then
+            for _, w in ipairs(p._leaderWidgets) do
+                if w.row then w.row:Hide() end
+            end
+        end
+        content:SetHeight(120)
+        return
     end
 
     -------- Rebuild rows only when entry count changes --------
@@ -912,6 +922,7 @@ function Details:_RefreshLeaders(p)
     for rank, w in ipairs(p._leaderWidgets or {}) do
         local entry = entries[rank]
         if entry then
+            w.row:Show()
             local isSelf = (entry.key == selfKey)
             local alpha = joined and 0.92 or 0.45
             w.row:SetBackdropColor(isSelf and 0.08 or 0.04, isSelf and 0.12 or 0.04,
