@@ -782,13 +782,30 @@ end
 -- PANEL 3 — Leaderboard
 -------------------------------------------------------------------------------
 function Details:_BuildLeaderPanel(p)
-    local sf, content = CreateScrollPanel(p, DW - 20, 420)
-    sf:SetPoint("TOPLEFT", p, "TOPLEFT", 4, -4)
+    local btn = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+    btn:SetSize(180, 22)
+    btn:SetPoint("TOPRIGHT", p, "TOPRIGHT", -12, -8)
+    btn:SetScript("OnClick", function()
+        if not B.Community then return end
+        if B.Community:IsJoined() then
+            B.Community:LeaveLeaderboardChannel()
+        else
+            B.Community:JoinLeaderboardChannel()
+        end
+        Details:Refresh()
+    end)
+    p.channelBtn = btn
+
+    local sf, content = CreateScrollPanel(p, DW - 20, 390)
+    sf:SetPoint("TOPLEFT", p, "TOPLEFT", 4, -36)
     p.leaderSF      = sf
     p.leaderContent = content
 end
 
 function Details:_RefreshLeaders(p)
+    if p.channelBtn and B.Community then
+        p.channelBtn:SetText(B.Community:IsJoined() and "Leave Leaderboard" or "Join Leaderboard")
+    end
     local function JumpTitleForLevel(level)
         local best = (B.LEVELS[1] and B.LEVELS[1].name) or "First Hop"
         for _, l in ipairs(B.LEVELS or {}) do

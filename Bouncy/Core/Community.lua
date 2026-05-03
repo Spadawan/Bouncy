@@ -10,8 +10,11 @@ local Community = B.Community
 local PREFIX = "UGC_SYNC"
 local CHANNEL_NAME = "UGC"
 local THROTTLE = 20
+local STATE_GRACE_SECONDS = 2.0
 
 Community._lastSend = 0
+Community._pendingJoinUntil = 0
+Community._pendingLeaveUntil = 0
 
 local function split(msg, sep)
     local out = {}
@@ -60,20 +63,64 @@ function Community:_scheduleReorderChannelLast()
     end
 end
 
+function Community:_joinChannel()
+    if type(JoinChannelByName) ~= "function" then return false end
+    JoinChannelByName(CHANNEL_NAME)
+    self:_scheduleReorderChannelLast()
+    if type(ChatFrame_RemoveChannel) == "function" then
+        for i = 1, (NUM_CHAT_WINDOWS or 0) do
+            local frame = _G["ChatFrame" .. i]
+            if frame then ChatFrame_RemoveChannel(frame, CHANNEL_NAME) end
+        end
+    end
+    return true
+end
+
+function Community:IsJoined()
+    local now = GetTime and GetTime() or 0
+    if (self._pendingLeaveUntil or 0) > now then return false end
+    if (self._pendingJoinUntil or 0) > now then return true end
+    local id = GetChannelName(CHANNEL_NAME)
+    return id and id > 0
+end
+
+function Community:JoinLeaderboardChannel()
+    if not self:_joinChannel() then return false end
+    local now = GetTime and GetTime() or 0
+    self._pendingJoinUntil = now + STATE_GRACE_SECONDS
+    self._pendingLeaveUntil = 0
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0.4, function()
+            Community:Broadcast(true)
+            if B.Details and B.Details.frame and B.Details.frame:IsShown() then
+                B.Details:Refresh()
+            end
+        end)
+    end
+    return true
+end
+
+function Community:LeaveLeaderboardChannel()
+    if type(LeaveChannelByName) ~= "function" then return false end
+    local id = GetChannelName(CHANNEL_NAME)
+    if id and id > 0 then
+        LeaveChannelByName(CHANNEL_NAME)
+        local now = GetTime and GetTime() or 0
+        self._pendingLeaveUntil = now + STATE_GRACE_SECONDS
+        self._pendingJoinUntil = 0
+        if B.Details and B.Details.frame and B.Details.frame:IsShown() then
+            B.Details:Refresh()
+        end
+        return true
+    end
+    return false
+end
+
 function Community:Init()
     if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
         C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
     end
-    if type(JoinChannelByName) == "function" then
-        JoinChannelByName(CHANNEL_NAME)
-        self:_scheduleReorderChannelLast()
-        if type(ChatFrame_RemoveChannel) == "function" then
-            for i = 1, (NUM_CHAT_WINDOWS or 0) do
-                local frame = _G["ChatFrame" .. i]
-                if frame then ChatFrame_RemoveChannel(frame, CHANNEL_NAME) end
-            end
-        end
-    end
+    self:JoinLeaderboardChannel()
 end
 
 function Community:Broadcast(force)
