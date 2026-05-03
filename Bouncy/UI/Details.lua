@@ -162,6 +162,18 @@ local function CreateTab(parent, label, idx, x)
             self.label:SetTextColor(0.7, 0.7, 0.7)
         end
     end
+
+    function btn:SetLocked(locked)
+        self._locked = locked and true or false
+        self:EnableMouse(not self._locked)
+        if self._locked then
+            self:SetBackdropColor(0.03, 0.03, 0.06, 0.92)
+            self:SetBackdropBorderColor(0.18, 0.18, 0.22, 0.7)
+            self.label:SetTextColor(0.38, 0.38, 0.40)
+        else
+            self:SetActive(false)
+        end
+    end
     btn:SetActive(false)
     return btn
 end
@@ -286,11 +298,26 @@ end
 -------------------------------------------------------------------------------
 -- Panel switcher
 -------------------------------------------------------------------------------
+function Details:_UpdateLeaderboardTabLock()
+    local tab = self.tabs and self.tabs[PANEL_LEADERS]
+    if not tab then return true end
+    local joined = (B.Community and B.Community.IsJoined and B.Community:IsJoined()) and true or false
+    tab:SetLocked(not joined)
+    return joined
+end
+
 function Details:ShowPanel(idx)
+    local leaderboardJoined = self:_UpdateLeaderboardTabLock()
+    if idx == PANEL_LEADERS and not leaderboardJoined then
+        idx = PANEL_STATS
+    end
     activePanel = idx
     for i, p in ipairs(self.panels) do
         p:SetShown(i == idx)
         self.tabs[i]:SetActive(i == idx)
+        if self.tabs[i]._locked and i ~= idx then
+            self.tabs[i]:SetLocked(true)
+        end
     end
     if B.Overlay and B.Overlay.frame and activePanel == PANEL_CUSTOM then
         B.Overlay.frame:Show()
@@ -1323,6 +1350,11 @@ function Details:_BuildCustomPanel(p)
 end
 function Details:Refresh()
     if not self.frame or not self.frame:IsShown() then return end
+    local joined = self:_UpdateLeaderboardTabLock()
+    if activePanel == PANEL_LEADERS and not joined then
+        self:ShowPanel(PANEL_STATS)
+        return
+    end
     if activePanel == PANEL_STATS then
         self:_RefreshStats(self.panels[PANEL_STATS])
     elseif activePanel == PANEL_ZONES then
