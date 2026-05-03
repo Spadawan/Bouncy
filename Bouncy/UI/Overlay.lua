@@ -259,7 +259,7 @@ function Overlay:Init()
 
     -- Big counter (child of jumpNumFrame so squish applies to it)
     local jumpNum = MakeFont(jumpNumFrame, settings.overlayFontSize or 26, "OUTLINE")
-    jumpNum:SetPoint("CENTER", jumpNumFrame, "CENTER", 0, 8)
+    jumpNum:SetPoint("CENTER", jumpNumFrame, "CENTER", -3, 8)
 
     -- "JUMPS" sub-label (also in jumpNumFrame)
     local jumpLbl = MakeFont(jumpNumFrame, 7, "")

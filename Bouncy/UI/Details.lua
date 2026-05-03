@@ -162,6 +162,7 @@ local function CreateTab(parent, label, idx, x)
             self.label:SetTextColor(0.7, 0.7, 0.7)
         end
     end
+
     btn:SetActive(false)
     return btn
 end
@@ -782,13 +783,31 @@ end
 -- PANEL 3 — Leaderboard
 -------------------------------------------------------------------------------
 function Details:_BuildLeaderPanel(p)
-    local sf, content = CreateScrollPanel(p, DW - 20, 420)
-    sf:SetPoint("TOPLEFT", p, "TOPLEFT", 4, -4)
+    local btn = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+    btn:SetSize(180, 22)
+    btn:SetPoint("TOPRIGHT", p, "TOPRIGHT", -12, -8)
+    btn:SetScript("OnClick", function()
+        if not B.Community then return end
+        if B.Community:IsJoined() then
+            B.Community:LeaveLeaderboardChannel()
+        else
+            B.Community:JoinLeaderboardChannel()
+        end
+        Details:Refresh()
+    end)
+    p.channelBtn = btn
+
+    local sf, content = CreateScrollPanel(p, DW - 20, 390)
+    sf:SetPoint("TOPLEFT", p, "TOPLEFT", 4, -36)
     p.leaderSF      = sf
     p.leaderContent = content
 end
 
 function Details:_RefreshLeaders(p)
+    local joined = (B.Community and B.Community.IsJoined and B.Community:IsJoined()) and true or false
+    if p.channelBtn and B.Community then
+        p.channelBtn:SetText(joined and "Leave Leaderboard" or "Join Leaderboard")
+    end
     local function JumpTitleForLevel(level)
         local best = (B.LEVELS[1] and B.LEVELS[1].name) or "First Hop"
         for _, l in ipairs(B.LEVELS or {}) do
@@ -808,7 +827,29 @@ function Details:_RefreshLeaders(p)
     table.sort(entries, function(a,b) return a.jumps > b.jumps end)
 
     local content = p.leaderContent
+    if p._leaderLockedText then
+        p._leaderLockedText:SetShown(not joined)
+    end
     local maxJ    = (entries[1] and entries[1].jumps) or 1
+
+    if not p._leaderLockedText then
+        local locked = content:CreateFontString(nil, "OVERLAY")
+        locked:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        locked:SetPoint("TOP", content, "TOP", 0, -42)
+        locked:SetText("|cff999999Join the leaderboard channel to load rankings. Use the button above to join or leave.|r")
+        locked:Hide()
+        p._leaderLockedText = locked
+    end
+
+    if not joined then
+        if p._leaderWidgets then
+            for _, w in ipairs(p._leaderWidgets) do
+                if w.row then w.row:Hide() end
+            end
+        end
+        content:SetHeight(120)
+        return
+    end
 
     -------- Rebuild rows only when entry count changes --------
     if p._leaderCount ~= #entries then
@@ -881,14 +922,17 @@ function Details:_RefreshLeaders(p)
     for rank, w in ipairs(p._leaderWidgets or {}) do
         local entry = entries[rank]
         if entry then
+            w.row:Show()
             local isSelf = (entry.key == selfKey)
+            local alpha = joined and 0.92 or 0.45
             w.row:SetBackdropColor(isSelf and 0.08 or 0.04, isSelf and 0.12 or 0.04,
-                                   isSelf and 0.30 or 0.10, 0.92)
+                                   isSelf and 0.30 or 0.10, alpha)
             w.row:SetBackdropBorderColor(isSelf and 0.5 or 0.2, isSelf and 0.8 or 0.3,
                                          isSelf and 1.0 or 0.5, 0.7)
             local nameHex = ClassColorHex(entry.class)
+            local displayHex = joined and nameHex or "777777"
             w.nameFS:SetText(string.format("|cff%s%s|r",
-                nameHex, entry.name or "?"))
+                displayHex, entry.name or "?"))
             w.realmFS:SetText(string.format("|cff%s%s|r", B.COLOR.DIM, entry.realm or ""))
             w.jumpFS:SetText(string.format("|cff%s%s|r  |cff%sjumps|r",
                 B.COLOR.JUMP, B.FormatNum(entry.jumps), B.COLOR.DIM))
@@ -898,6 +942,7 @@ function Details:_RefreshLeaders(p)
             w.bar:SetColorTexture(isSelf and 0.4 or 0.25, isSelf and 0.85 or 0.5,
                                    isSelf and 1.0 or 0.7, 0.8)
             w.row:SetScript("OnEnter", function(self)
+                if not joined then return end
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetText((entry.name or "?") .. " - " .. (entry.realm or ""))
                 GameTooltip:AddLine(string.format("Jump Level: %d", entry.level or 1), 0.4, 0.8, 1.0)
