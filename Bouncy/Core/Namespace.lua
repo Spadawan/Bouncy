@@ -77,9 +77,16 @@ function B.GetLevelTitleID(title)
     return tostring(title or ""):gsub("%s+", "_"):lower()
 end
 
--- Returns unique level-based title unlocks in progression order.
+function B.GetTitleRarityColor(level)
+    level = tonumber(level) or 1
+    if level >= 85 then return "FF8000" end -- legendary
+    if level >= 50 then return "A335EE" end -- epic
+    if level >= 25 then return "0070DD" end -- rare
+    return "FFFFFF" -- common
+end
+
+-- Returns unique level-based and achievement-reward title unlocks in progression order.
 function B.GetLevelTitleMilestones()
-    if B._levelTitleMilestones then return B._levelTitleMilestones end
     local milestones = {}
     local seen = {}
     for _, lvl in ipairs(B.LEVELS or {}) do
@@ -90,12 +97,26 @@ function B.GetLevelTitleMilestones()
                 id = id,
                 level = lvl.level,
                 title = title,
-                color = "33FF66",
+                color = B.GetTitleRarityColor(lvl.level),
+                source = "level",
             }
             seen[id] = true
         end
     end
-    B._levelTitleMilestones = milestones
+    if B.Achievements and B.Achievements.GetTitleRewards then
+        for _, reward in ipairs(B.Achievements:GetTitleRewards()) do
+            if reward.id and reward.title and not seen[reward.id] then
+                milestones[#milestones + 1] = {
+                    id = reward.id,
+                    level = reward.level or 999,
+                    title = reward.title,
+                    color = reward.color or "A335EE",
+                    source = "achievement",
+                }
+                seen[reward.id] = true
+            end
+        end
+    end
     return milestones
 end
 

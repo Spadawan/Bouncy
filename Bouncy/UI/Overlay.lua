@@ -451,8 +451,12 @@ function Overlay:OnTitleUnlock(titleData)
 end
 
 function Overlay:OnAchievementUnlock(achievement)
-    print(string.format("|cffA0E4FFBouncy|r  Achievement earned: |cffffd700[%s]|r |cff%s+%d points|r",
-        achievement.title or "Achievement", B.COLOR.DIM, achievement.points or 0))
+    local rewardText = ""
+    if achievement.rewardTitle then
+        rewardText = string.format("  |cff%sTitle: %s|r", achievement.rewardTitle.color or "A335EE", achievement.rewardTitle.title or "Title")
+    end
+    print(string.format("|cffA0E4FFBouncy|r  Achievement earned: |cffffd700[%s]|r |cff%s+%d points|r%s",
+        achievement.title or "Achievement", B.COLOR.DIM, achievement.points or 0, rewardText))
     if not B.DB:GetSettings().ultraMinimal then
         self.frame:SetBackdropBorderColor(1.0, 0.82, 0.20, 1.0)
         C_Timer.After(0.9, function()

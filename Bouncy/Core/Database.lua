@@ -7,7 +7,7 @@ local B  = _G.Bouncy
 B.DB     = {}
 local DB = B.DB
 
-local SCHEMA_VERSION = 1
+local SCHEMA_VERSION = 2
 
 local DEFAULTS = {
     version  = SCHEMA_VERSION,
@@ -22,7 +22,7 @@ local DEFAULTS = {
         -- Minimal mode: transparent bg/border by default; elements controlled individually
         ultraMinimal     = true,
         -- Overlay elements
-        showTitle        = false,   -- selected unlocked title above the counter
+        showTitle        = true,    -- selected unlocked title above the counter
         showJumpsLabel   = true,    -- "JUMPS" sub-label
         showXPBarAndLevel= true,    -- XP bar + level text (single toggle)
         showPlusOne      = true,    -- floating +Exp animation
@@ -66,7 +66,11 @@ end
 -------------------------------------------------------------------------------
 function DB:Init()
     if type(Bouncy_DB) ~= "table" then Bouncy_DB = {} end
+    local oldVersion = Bouncy_DB.version or 0
     deepMerge(Bouncy_DB, DEFAULTS)
+    if oldVersion < 2 then
+        Bouncy_DB.settings.showTitle = true
+    end
     if (Bouncy_DB.version or 0) < SCHEMA_VERSION then
         Bouncy_DB.version = SCHEMA_VERSION
     end
@@ -93,18 +97,26 @@ function DB:EnsureChar(key)
             totalJumps = 0,
             bestStreak = 0,
             achievements = {}, -- [achievementID] = { earnedAt = timestamp }
+            specialJumps = { raid = 0, instance = 0, night = 0, home = 0, mounted = 0 },
             byZone     = {},   -- [zoneName] = jumpCount
             daily      = { dayStart = 0, jumps = 0 },
             weekly     = { weekStart = 0, jumps = 0 },
         }
     end
-    return Bouncy_DB.characters[key]
+    local char = Bouncy_DB.characters[key]
+    if type(char.bestStreak) ~= "number" then char.bestStreak = 0 end
+    if type(char.achievements) ~= "table" then char.achievements = {} end
+    if type(char.specialJumps) ~= "table" then char.specialJumps = {} end
+    for _, field in ipairs({ "raid", "instance", "night", "home", "mounted" }) do
+        if type(char.specialJumps[field]) ~= "number" then char.specialJumps[field] = 0 end
+    end
+    return char
 end
 
 -------------------------------------------------------------------------------
 -- Record a jump
 -------------------------------------------------------------------------------
-function DB:RecordJump(zoneName)
+function DB:RecordJump(zoneName, context)
     local key  = self:CharKey()
     local char = self:EnsureChar(key)
     char.totalJumps = char.totalJumps + 1
@@ -112,6 +124,18 @@ function DB:RecordJump(zoneName)
     -- By zone
     zoneName = zoneName or "Unknown"
     char.byZone[zoneName] = (char.byZone[zoneName] or 0) + 1
+
+    -- Special achievement counters
+    context = context or {}
+    char.specialJumps = char.specialJumps or { raid = 0, instance = 0, night = 0, home = 0, mounted = 0 }
+    if context.instanceType == "raid" then
+        char.specialJumps.raid = (char.specialJumps.raid or 0) + 1
+    elseif context.instanceType == "party" then
+        char.specialJumps.instance = (char.specialJumps.instance or 0) + 1
+    end
+    if context.isNight then char.specialJumps.night = (char.specialJumps.night or 0) + 1 end
+    if context.isHome then char.specialJumps.home = (char.specialJumps.home or 0) + 1 end
+    if context.isMounted then char.specialJumps.mounted = (char.specialJumps.mounted or 0) + 1 end
 
     -- Daily / weekly resets
     local now = GetServerTime()

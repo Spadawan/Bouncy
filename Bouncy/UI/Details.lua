@@ -556,26 +556,27 @@ function Details:_RefreshStats(p)
     local selectedTitle = B.Leveling:GetSelectedPlayerTitle(prog)
     p.titleLine:SetText(string.format("Displayed title: |cff%s%s|r", selectedTitle.color or "33FF66", selectedTitle.title or "First Hop"))
 
-    UIDropDownMenu_Initialize(p.titleDropdown, function(self, level)
-        local unlockedTitles = B.Leveling:GetUnlockedPlayerTitles(prog)
-        for _, title in ipairs(unlockedTitles) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = string.format("|cff%s%s|r", title.color or "33FF66", title.title or "")
-            info.value = title.id
-            info.checked = (title.id == prog.selectedPlayerTitle)
-            info.func = function()
-                if B.Leveling:SetSelectedPlayerTitle(prog, title.id) then
-                    UIDropDownMenu_SetSelectedValue(p.titleDropdown, title.id)
-                    UIDropDownMenu_SetText(p.titleDropdown, title.title)
-                    if B.Overlay then B.Overlay:Refresh() end
-                    Details:_RefreshStats(p)
+    if UIDROPDOWNMENU_OPEN_MENU ~= p.titleDropdown then
+        UIDropDownMenu_Initialize(p.titleDropdown, function(self, level)
+            local unlockedTitles = B.Leveling:GetUnlockedPlayerTitles(prog)
+            for _, title in ipairs(unlockedTitles) do
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = string.format("|cff%s%s|r", title.color or "33FF66", title.title or "")
+                info.value = title.id
+                info.checked = (title.id == prog.selectedPlayerTitle)
+                info.func = function()
+                    if B.Leveling:SetSelectedPlayerTitle(prog, title.id) then
+                        UIDropDownMenu_SetSelectedValue(p.titleDropdown, title.id)
+                        UIDropDownMenu_SetText(p.titleDropdown, title.title)
+                        if B.Overlay then B.Overlay:Refresh() end
+                    end
                 end
+                UIDropDownMenu_AddButton(info, level)
             end
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
-    UIDropDownMenu_SetSelectedValue(p.titleDropdown, selectedTitle.id)
-    UIDropDownMenu_SetText(p.titleDropdown, selectedTitle.title or "Select title")
+        end)
+        UIDropDownMenu_SetSelectedValue(p.titleDropdown, selectedTitle.id)
+        UIDropDownMenu_SetText(p.titleDropdown, selectedTitle.title or "Select title")
+    end
 
     local nextTitleName = nil
     for _, title in ipairs(B.GetLevelTitleMilestones()) do
@@ -1123,15 +1124,19 @@ function Details:_RefreshAchievements(p)
                               edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
                               edgeSize=10, insets={left=3,right=3,top=3,bottom=3} })
 
-            local rowIcon = row:CreateTexture(nil, "ARTWORK")
-            rowIcon:SetSize(42, 42)
-            rowIcon:SetPoint("LEFT", row, "LEFT", 10, 6)
-            rowIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            local iconFrame = CreateFrame("Frame", nil, row, "BackdropTemplate")
+            iconFrame:SetSize(46, 46)
+            iconFrame:SetPoint("LEFT", row, "LEFT", 10, 0)
+            iconFrame:SetBackdrop({ bgFile="Interface\\ChatFrame\\ChatFrameBackground",
+                                    edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+                                    edgeSize=8, insets={left=2,right=2,top=2,bottom=2} })
+            iconFrame:SetBackdropColor(0.02, 0.02, 0.02, 0.95)
+            iconFrame:SetBackdropBorderColor(0.55, 0.43, 0.18, 0.9)
 
-            local iconBorder = row:CreateTexture(nil, "OVERLAY")
-            iconBorder:SetSize(48, 48)
-            iconBorder:SetPoint("CENTER", rowIcon, "CENTER", 0, 0)
-            iconBorder:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+            local rowIcon = iconFrame:CreateTexture(nil, "ARTWORK")
+            rowIcon:SetPoint("TOPLEFT", iconFrame, "TOPLEFT", 4, -4)
+            rowIcon:SetPoint("BOTTOMRIGHT", iconFrame, "BOTTOMRIGHT", -4, 4)
+            rowIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
             local titleFS = row:CreateFontString(nil, "OVERLAY")
             titleFS:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
@@ -1191,7 +1196,11 @@ function Details:_RefreshAchievements(p)
         w.row:SetBackdropColor(isUnlocked and 0.12 or 0.035, isUnlocked and 0.09 or 0.035, isUnlocked and 0.02 or 0.07, isUnlocked and 0.94 or 0.85)
         w.row:SetBackdropBorderColor(isUnlocked and 0.85 or 0.24, isUnlocked and 0.62 or 0.24, isUnlocked and 0.18 or 0.42, isUnlocked and 0.95 or 0.65)
         w.titleFS:SetText(string.format("|cff%s%s|r", isUnlocked and "FFD700" or "BBBBBB", achievement.title or "Achievement"))
-        w.descFS:SetText(string.format("|cff%s%s|r", isUnlocked and "FFFFFF" or "888888", achievement.description or ""))
+        local desc = achievement.description or ""
+        if achievement.rewardTitle then
+            desc = desc .. string.format("  |cffffd700Reward:|r |cff%s%s|r", achievement.rewardTitle.color or "A335EE", achievement.rewardTitle.title or "Title")
+        end
+        w.descFS:SetText(string.format("|cff%s%s|r", isUnlocked and "FFFFFF" or "888888", desc))
         w.pointsFS:SetText(string.format("|cffffd700%d|r", achievement.points or 0))
         w.statusFS:SetText(string.format("|cff%s%s  %s/%s|r",
             isUnlocked and "88FF88" or B.COLOR.DIM,
@@ -1207,6 +1216,9 @@ function Details:_RefreshAchievements(p)
             GameTooltip:AddLine(achievement.description or "", 1, 1, 1, true)
             GameTooltip:AddLine(string.format("Progress: %s/%s", B.FormatNum(current), B.FormatNum(goal)), 0.7, 0.9, 1.0)
             GameTooltip:AddLine(string.format("Achievement Points: %d", achievement.points or 0), 1.0, 0.82, 0.0)
+            if achievement.rewardTitle then
+                GameTooltip:AddLine(string.format("Reward Title: %s", achievement.rewardTitle.title or "Title"), 1.0, 0.82, 0.0)
+            end
             if isUnlocked then GameTooltip:AddLine(AchievementEarnedText(char, achievement), 0.5, 1.0, 0.5) end
             GameTooltip:Show()
         end)
@@ -1611,7 +1623,9 @@ end
 function Details:Refresh()
     if not self.frame or not self.frame:IsShown() then return end
     if activePanel == PANEL_STATS then
-        self:_RefreshStats(self.panels[PANEL_STATS])
+        local statsPanel = self.panels[PANEL_STATS]
+        if statsPanel and statsPanel.titleDropdown and UIDROPDOWNMENU_OPEN_MENU == statsPanel.titleDropdown then return end
+        self:_RefreshStats(statsPanel)
     elseif activePanel == PANEL_ZONES then
         self:_RefreshZones(self.panels[PANEL_ZONES])
     elseif activePanel == PANEL_LEADERS then

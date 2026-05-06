@@ -60,6 +60,40 @@ local function BreakStreak(reason)
     end
 end
 
+
+local HOME_ZONE_ALIASES = {
+    ["intérieur du foyer"] = true,
+    ["interieur du foyer"] = true,
+    ["home interior"] = true,
+    ["interior of the home"] = true,
+    ["player housing"] = true,
+}
+
+local function IsHomeZone(zone, subZone)
+    local z = tostring(zone or ""):lower()
+    local sz = tostring(subZone or ""):lower()
+    return HOME_ZONE_ALIASES[z] or HOME_ZONE_ALIASES[sz] or false
+end
+
+local function BuildJumpContext(zone)
+    local subZone = (GetSubZoneText and GetSubZoneText()) or ""
+    local instanceType = nil
+    if IsInInstance then
+        local inInstance, instType = IsInInstance()
+        if inInstance then instanceType = instType end
+    end
+    local serverTime = GetServerTime and GetServerTime() or time()
+    local hour = tonumber(date("%H", serverTime)) or 12
+    return {
+        zone = zone,
+        subZone = subZone,
+        instanceType = instanceType,
+        isMounted = (IsMounted and IsMounted()) and true or false,
+        isNight = (hour >= 22 or hour < 6),
+        isHome = IsHomeZone(zone, subZone),
+    }
+end
+
 local function OnJump()
     local now  = GetTime()
     local zone = GetZoneText() or "Unknown"
@@ -97,7 +131,7 @@ local function OnJump()
     B.DB:AddXP(xpGained)
     local newLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
 
-    B.DB:RecordJump(zone)
+    B.DB:RecordJump(zone, BuildJumpContext(zone))
     local newAchievements = B.Achievements and B.Achievements:Evaluate(B.DB:GetChar(), prog) or nil
     local newLevel  = nil
     local newTitles = nil
