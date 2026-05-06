@@ -502,6 +502,9 @@ function Details:_RefreshStats(p)
     if not char then return end
     local prog = B.DB:GetProgression()
 
+    if B.Leveling and B.Leveling.AdvanceCreatureNonEvolutionLevels and B.Leveling:AdvanceCreatureNonEvolutionLevels(prog) then
+        if B.Achievements then B.Achievements:Evaluate(char, prog) end
+    end
     local creatureLvl = prog.level or 1
     local stage = B.Leveling:GetCreatureStage(creatureLvl)
     local reqXP = B.Leveling:GetCreatureXPRequirement(creatureLvl)

@@ -163,12 +163,15 @@ function Leveling:UnlockPlayerTitlesForLevelRange(prog, oldLevel, newLevel)
     return unlocked
 end
 
+function Leveling:IsEvolutionLevel(level)
+    local stage = self:GetCreatureStage(level or 1)
+    local nextStage = self:GetCreatureStage((level or 1) + 1)
+    return nextStage.art ~= stage.art
+end
+
 function Leveling:CanEvolve(prog)
     local level = prog.level or 1
-    local stage = self:GetCreatureStage(level)
-    local nextLevel = level + 1
-    local nextStage = self:GetCreatureStage(nextLevel)
-    if nextStage.art == stage.art then return false end
+    if not self:IsEvolutionLevel(level) then return false end
     local req = self:GetCreatureXPRequirement(level)
     return (prog.creatureXP or 0) >= req
 end
@@ -177,11 +180,9 @@ function Leveling:AdvanceCreatureNonEvolutionLevels(prog)
     local changed = false
     while true do
         local level = prog.level or 1
+        if self:IsEvolutionLevel(level) then break end
         local req = self:GetCreatureXPRequirement(level)
         if (prog.creatureXP or 0) < req then break end
-        local stage = self:GetCreatureStage(level)
-        local nextStage = self:GetCreatureStage(level + 1)
-        if nextStage.art ~= stage.art then break end
         prog.creatureXP = (prog.creatureXP or 0) - req
         prog.level = level + 1
         changed = true
