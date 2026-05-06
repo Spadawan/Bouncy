@@ -451,7 +451,7 @@ function Details:_BuildStatsPanel(p)
     local bx = 0
     for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
         local btn = MakeSmallButton(creatureType, 72, function()
-            if creatureType ~= "Astral" and creatureType ~= "Fire" and creatureType ~= "Water" then return end
+            if creatureType ~= "Astral" and creatureType ~= "Fire" and creatureType ~= "Water" and creatureType ~= "Electric" then return end
             B.DB:SetCreatureType(creatureType)
             B.DB:RecordCreatureTypeSelection()
             if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) end
@@ -522,9 +522,9 @@ function Details:_RefreshStats(p)
         p.artwork:SetSize(128, 128)
         p.artwork:ClearAllPoints()
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
-        local texturePrefix = ((prog.creatureType == "Fire" or prog.creatureType == "Water") and prog.creatureType) or "Astral"
+        local texturePrefix = ((prog.creatureType == "Fire" or prog.creatureType == "Water" or prog.creatureType == "Electric") and prog.creatureType) or "Astral"
         p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", texturePrefix, stage.art))
-        local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1)
+        local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1, prog)
         local creatureLabel = B.Leveling:GetCreatureLabel(prog.creatureType, creatureLvl)
         p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Bonus XP|r",
             B.COLOR.LEVEL_UP, creatureLvl, creatureLabel, bonusPct))
@@ -627,7 +627,7 @@ function Details:_RefreshStats(p)
     for _, btn in ipairs(p.typeButtons or {}) do
         btn:SetShown(shouldChooseType)
         local label = btn:GetText()
-        local enabled = (label == "Astral" or label == "Fire" or label == "Water")
+        local enabled = (label == "Astral" or label == "Fire" or label == "Water" or label == "Electric")
         btn:SetEnabled(enabled)
         if enabled then
             btn:GetFontString():SetTextColor(1, 1, 1)

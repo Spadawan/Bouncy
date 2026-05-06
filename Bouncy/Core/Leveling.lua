@@ -99,7 +99,8 @@ function Leveling:GetCreatureXPRequirement(level)
     return req
 end
 
-function Leveling:GetCreatureBonusPercent(level)
+function Leveling:GetCreatureBonusPercent(level, prog)
+    if prog and not prog.creatureType then return 0 end
     local stage = self:GetCreatureStage(level or 1)
     local evolutions = math.max(0, (stage.art or 1) - 1)
     local perLevel = math.max(0, level or 1) * 1

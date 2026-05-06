@@ -132,6 +132,7 @@ B.CREATURE_LEVELS = {
     Astral = BuildCreatureLevelSet("Astral"),
     Fire = BuildCreatureLevelSet("Fire"),
     Water = BuildCreatureLevelSet("Water"),
+    Electric = BuildCreatureLevelSet("Electric"),
 }
 
 -------------------------------------------------------------------------------
