@@ -54,6 +54,17 @@ local function RecordCreatureEvolution()
     return stats
 end
 
+local function RecordCreatureTypeSelection()
+    if B.DB and type(B.DB.RecordCreatureTypeSelection) == "function" then
+        return B.DB:RecordCreatureTypeSelection()
+    end
+    local char = B.DB and type(B.DB.EnsureChar) == "function" and B.DB:EnsureChar() or nil
+    local stats = EnsureCreatureStats(char)
+    if not stats then return nil end
+    stats.typeSelections = stats.typeSelections + 1
+    return stats
+end
+
 local function PlayCreatureFeedAnim(p)
     if not p._feedAnim then
         local ag = p.artwork:CreateAnimationGroup()
@@ -486,7 +497,7 @@ function Details:_BuildStatsPanel(p)
         local btn = MakeSmallButton(creatureType, 72, function()
             if creatureType ~= "Astral" and creatureType ~= "Fire" and creatureType ~= "Water" and creatureType ~= "Electric" then return end
             B.DB:SetCreatureType(creatureType)
-            B.DB:RecordCreatureTypeSelection()
+            RecordCreatureTypeSelection()
             if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) end
             Details:Refresh()
         end)

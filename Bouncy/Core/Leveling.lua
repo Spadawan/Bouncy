@@ -116,8 +116,29 @@ function Leveling:EnsurePlayerTitleState(prog)
     if type(prog.unlockedPlayerTitles) ~= "table" then
         prog.unlockedPlayerTitles = {}
     end
+
+    local currentLevel = 1
+    if prog and type(prog.xp) == "number" then
+        local levelData = self:GetLevelForXP(prog.xp, true)
+        currentLevel = levelData and levelData.level or currentLevel
+    end
+
+    for _, title in ipairs(B.GetLevelTitleMilestones()) do
+        if title.source == "level" and (title.level or 1) <= currentLevel then
+            prog.unlockedPlayerTitles[title.id] = true
+        end
+    end
+
     if prog.selectedPlayerTitle and (not B.GetLevelTitleByID(prog.selectedPlayerTitle) or not prog.unlockedPlayerTitles[prog.selectedPlayerTitle]) then
         prog.selectedPlayerTitle = nil
+    end
+    if not prog.selectedPlayerTitle then
+        for _, title in ipairs(B.GetLevelTitleMilestones()) do
+            if prog.unlockedPlayerTitles[title.id] then
+                prog.selectedPlayerTitle = title.id
+                break
+            end
+        end
     end
 end
 
