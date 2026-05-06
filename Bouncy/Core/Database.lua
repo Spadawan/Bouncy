@@ -7,7 +7,7 @@ local B  = _G.Bouncy
 B.DB     = {}
 local DB = B.DB
 
-local SCHEMA_VERSION = 1
+local SCHEMA_VERSION = 2
 
 local DEFAULTS = {
     version  = SCHEMA_VERSION,
@@ -22,7 +22,7 @@ local DEFAULTS = {
         -- Minimal mode: transparent bg/border by default; elements controlled individually
         ultraMinimal     = true,
         -- Overlay elements
-        showTitle        = false,   -- "BOUNCY" label
+        showTitle        = true,    -- selected unlocked title above the counter
         showJumpsLabel   = true,    -- "JUMPS" sub-label
         showXPBarAndLevel= true,    -- XP bar + level text (single toggle)
         showPlusOne      = true,    -- floating +Exp animation
@@ -66,7 +66,11 @@ end
 -------------------------------------------------------------------------------
 function DB:Init()
     if type(Bouncy_DB) ~= "table" then Bouncy_DB = {} end
+    local oldVersion = Bouncy_DB.version or 0
     deepMerge(Bouncy_DB, DEFAULTS)
+    if oldVersion < 2 then
+        Bouncy_DB.settings.showTitle = true
+    end
     if (Bouncy_DB.version or 0) < SCHEMA_VERSION then
         Bouncy_DB.version = SCHEMA_VERSION
     end
@@ -91,19 +95,37 @@ function DB:EnsureChar(key)
             realm      = GetRealmName() or "Unknown",
             class      = select(2, UnitClass("player")) or "UNKNOWN",
             totalJumps = 0,
-                bestStreak = 0,
+            bestStreak = 0,
+            achievements = {}, -- [achievementID] = { earnedAt = timestamp }
+            creatureStats = { feeds = 0, consecutiveFeeds = 0, evolutions = 0, typeSelections = 0 },
+            specialJumps = { raid = 0, instance = 0, night = 0, home = 0, mounted = 0 },
+            byZoneID   = {},   -- [uiMapID/zoneID] = jumpCount
+            bySubZone  = {},   -- [subZoneName] = jumpCount
             byZone     = {},   -- [zoneName] = jumpCount
             daily      = { dayStart = 0, jumps = 0 },
             weekly     = { weekStart = 0, jumps = 0 },
         }
     end
-    return Bouncy_DB.characters[key]
+    local char = Bouncy_DB.characters[key]
+    if type(char.bestStreak) ~= "number" then char.bestStreak = 0 end
+    if type(char.achievements) ~= "table" then char.achievements = {} end
+    if type(char.creatureStats) ~= "table" then char.creatureStats = {} end
+    for _, field in ipairs({ "feeds", "consecutiveFeeds", "evolutions", "typeSelections" }) do
+        if type(char.creatureStats[field]) ~= "number" then char.creatureStats[field] = 0 end
+    end
+    if type(char.specialJumps) ~= "table" then char.specialJumps = {} end
+    if type(char.byZoneID) ~= "table" then char.byZoneID = {} end
+    if type(char.bySubZone) ~= "table" then char.bySubZone = {} end
+    for _, field in ipairs({ "raid", "instance", "night", "home", "mounted" }) do
+        if type(char.specialJumps[field]) ~= "number" then char.specialJumps[field] = 0 end
+    end
+    return char
 end
 
 -------------------------------------------------------------------------------
 -- Record a jump
 -------------------------------------------------------------------------------
-function DB:RecordJump(zoneName)
+function DB:RecordJump(zoneName, context)
     local key  = self:CharKey()
     local char = self:EnsureChar(key)
     char.totalJumps = char.totalJumps + 1
@@ -111,6 +133,27 @@ function DB:RecordJump(zoneName)
     -- By zone
     zoneName = zoneName or "Unknown"
     char.byZone[zoneName] = (char.byZone[zoneName] or 0) + 1
+    context = context or {}
+    if context.mapID then
+        local mapKey = tostring(context.mapID)
+        char.byZoneID = char.byZoneID or {}
+        char.byZoneID[mapKey] = (char.byZoneID[mapKey] or 0) + 1
+    end
+    if context.subZone and context.subZone ~= "" then
+        char.bySubZone = char.bySubZone or {}
+        char.bySubZone[context.subZone] = (char.bySubZone[context.subZone] or 0) + 1
+    end
+
+    -- Special achievement counters
+    char.specialJumps = char.specialJumps or { raid = 0, instance = 0, night = 0, home = 0, mounted = 0 }
+    if context.instanceType == "raid" then
+        char.specialJumps.raid = (char.specialJumps.raid or 0) + 1
+    elseif context.instanceType == "party" then
+        char.specialJumps.instance = (char.specialJumps.instance or 0) + 1
+    end
+    if context.isNight then char.specialJumps.night = (char.specialJumps.night or 0) + 1 end
+    if context.isHome then char.specialJumps.home = (char.specialJumps.home or 0) + 1 end
+    if context.isMounted then char.specialJumps.mounted = (char.specialJumps.mounted or 0) + 1 end
 
     -- Daily / weekly resets
     local now = GetServerTime()
@@ -190,6 +233,9 @@ function DB:GetProgression()
     if type(Bouncy_DB.progression[key].bonusXPFraction) ~= "number" then
         Bouncy_DB.progression[key].bonusXPFraction = 0
     end
+    if B.Leveling and B.Leveling.EnsurePlayerTitleState then
+        B.Leveling:EnsurePlayerTitleState(Bouncy_DB.progression[key])
+    end
     return Bouncy_DB.progression[key]
 end
 
@@ -203,6 +249,27 @@ function DB:SetCreatureType(creatureType)
     local prog = self:GetProgression()
     prog.creatureType = creatureType
     return prog
+end
+
+
+function DB:RecordCreatureFeed()
+    local char = self:EnsureChar()
+    char.creatureStats.feeds = (char.creatureStats.feeds or 0) + 1
+    char.creatureStats.consecutiveFeeds = (char.creatureStats.consecutiveFeeds or 0) + 1
+    return char.creatureStats
+end
+
+function DB:RecordCreatureEvolution()
+    local char = self:EnsureChar()
+    char.creatureStats.evolutions = (char.creatureStats.evolutions or 0) + 1
+    char.creatureStats.consecutiveFeeds = 0
+    return char.creatureStats
+end
+
+function DB:RecordCreatureTypeSelection()
+    local char = self:EnsureChar()
+    char.creatureStats.typeSelections = (char.creatureStats.typeSelections or 0) + 1
+    return char.creatureStats
 end
 
 -------------------------------------------------------------------------------
@@ -229,4 +296,32 @@ function DB:ResetChar()
     Bouncy_DB.characters[key] = nil
     Bouncy_DB.progression[key] = nil
     self:EnsureChar(key)
+end
+
+function DB:ResetCharWithConfirmation(confirm)
+    if confirm == true then
+        self:ResetChar()
+        return true
+    end
+    StaticPopupDialogs = StaticPopupDialogs or {}
+    StaticPopupDialogs["BOUNCY_RESET_CHARACTER"] = StaticPopupDialogs["BOUNCY_RESET_CHARACTER"] or {
+        text = "Are you sure you want to reset this character's Bouncy data?",
+        button1 = "Yes",
+        button2 = "No",
+        OnAccept = function()
+            B.DB:ResetChar()
+            if B.Overlay then B.Overlay:Refresh() end
+            if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+            print(string.format("|cff%sBouncy|r Character data reset.", B.COLOR.TITLE))
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+        preferredIndex = 3,
+    }
+    if StaticPopup_Show then
+        StaticPopup_Show("BOUNCY_RESET_CHARACTER")
+        return false
+    end
+    return false
 end

@@ -50,13 +50,55 @@ end
 local function BreakStreak(reason)
     if streak > 0 then
         B.DB:RecordStreak(streak)
-        Fire("STREAK_BREAK", { streak = streak, reason = reason })
+        local newAchievements = B.Achievements and B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) or nil
+        Fire("STREAK_BREAK", { streak = streak, reason = reason, newAchievements = newAchievements })
     end
     streak = 0
     if streakTimer then
         streakTimer:Cancel()
         streakTimer = nil
     end
+end
+
+
+local HOME_ZONE_ALIASES = {
+    ["intérieur du foyer"] = true,
+    ["interieur du foyer"] = true,
+    ["home interior"] = true,
+    ["interior of the home"] = true,
+    ["player housing"] = true,
+}
+
+local function IsHomeZone(zone, subZone)
+    local z = tostring(zone or ""):lower()
+    local sz = tostring(subZone or ""):lower()
+    return HOME_ZONE_ALIASES[z] or HOME_ZONE_ALIASES[sz] or false
+end
+
+local function BuildJumpContext(zone)
+    local subZone = (GetSubZoneText and GetSubZoneText()) or ""
+    local instanceType = nil
+    if IsInInstance then
+        local inInstance, instType = IsInInstance()
+        if inInstance then instanceType = instType end
+    end
+    local mapID = nil
+    if C_Map and C_Map.GetBestMapForUnit then
+        mapID = C_Map.GetBestMapForUnit("player")
+    elseif GetCurrentMapAreaID then
+        mapID = GetCurrentMapAreaID()
+    end
+    local serverTime = GetServerTime and GetServerTime() or time()
+    local hour = tonumber(date("%H", serverTime)) or 12
+    return {
+        zone = zone,
+        subZone = subZone,
+        mapID = mapID,
+        instanceType = instanceType,
+        isMounted = (IsMounted and IsMounted()) and true or false,
+        isNight = (hour >= 22 or hour < 6),
+        isHome = IsHomeZone(zone, subZone),
+    }
 end
 
 local function OnJump()
@@ -88,7 +130,7 @@ local function OnJump()
     local prog = B.DB:GetProgression()
     local oldLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
     local creatureLevel = prog.level or 1
-    local bonusPct = (B.Leveling and B.Leveling.GetCreatureBonusPercent and B.Leveling:GetCreatureBonusPercent(creatureLevel)) or 0
+    local bonusPct = (B.Leveling and B.Leveling.GetCreatureBonusPercent and B.Leveling:GetCreatureBonusPercent(creatureLevel, prog)) or 0
     local bonusExact = (baseXP * (bonusPct * 0.01)) + (prog.bonusXPFraction or 0)
     local bonusXP = math.floor(bonusExact)
     prog.bonusXPFraction = bonusExact - bonusXP
@@ -96,11 +138,13 @@ local function OnJump()
     B.DB:AddXP(xpGained)
     local newLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
 
-    B.DB:RecordJump(zone)
+    B.DB:RecordJump(zone, BuildJumpContext(zone))
+    local newAchievements = B.Achievements and B.Achievements:Evaluate(B.DB:GetChar(), prog) or nil
     local newLevel  = nil
-    local newTitle  = nil
+    local newTitles = nil
     if (newLvlData.level or 1) > (oldLvlData.level or 1) then
-        newTitle = { title = newLvlData.name or "New Title", color = "33FF66" }
+        newTitles = B.Leveling:UnlockPlayerTitlesForLevelRange(prog, oldLvlData.level or 1, newLvlData.level or 1)
+        if #newTitles == 0 then newTitles = nil end
     end
 
     Fire("JUMP", {
@@ -113,7 +157,9 @@ local function OnJump()
         bonusXP   = bonusXP,
         prog      = prog,
         levelUp   = newLevel,
-        newTitle  = newTitle,
+        newTitles = newTitles,
+        newTitle  = newTitles and newTitles[1] or nil,
+        newAchievements = newAchievements,
     })
 end
 

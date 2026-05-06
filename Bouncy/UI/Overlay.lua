@@ -248,7 +248,9 @@ function Overlay:Init()
 
     -- Title
     local titleText = MakeFont(f, 8, "OUTLINE")
-    titleText:SetPoint("TOP", f, "TOP", 0, -4)
+    titleText:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -4)
+    titleText:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -4)
+    titleText:SetJustifyH("CENTER")
     titleText:SetTextColor(0.63, 0.89, 1.0)
     titleText:SetText("BOUNCY")
 
@@ -310,7 +312,7 @@ function Overlay:Init()
 
     B.Tracker:RegisterCallback(function(event, data)
         if event == "JUMP"                then self:OnJump(data)
-        elseif event == "STREAK_BREAK"    then self:OnStreakBreak()
+        elseif event == "STREAK_BREAK"    then self:OnStreakBreak(data)
         elseif event == "OVERLAY_REFRESH" then self:Refresh()
         end
     end)
@@ -329,6 +331,12 @@ function Overlay:Refresh()
     local s    = B.DB:GetSettings()
 
     self.jumpNum:SetText(B.FormatNum(char.totalJumps))
+    local selectedTitle = B.Leveling:GetSelectedPlayerTitle(prog)
+    if selectedTitle and selectedTitle.title then
+        self.titleText:SetText(string.format("|cff%s%s|r", selectedTitle.color or "A0E4FF", selectedTitle.title))
+    else
+        self.titleText:SetText("")
+    end
 
     local lvlData = B.Leveling:GetLevelForXP(prog.xp)
     self.lvlText:SetText("Lv." .. lvlData.level)
@@ -397,12 +405,28 @@ function Overlay:OnJump(data)
 
     self:Refresh()
 
-    if data.newTitle then self:OnTitleUnlock(data.newTitle) end
+    if data.newTitles then
+        for _, titleData in ipairs(data.newTitles) do
+            self:OnTitleUnlock(titleData)
+        end
+    elseif data.newTitle then
+        self:OnTitleUnlock(data.newTitle)
+    end
+    if data.newAchievements then
+        for _, achievement in ipairs(data.newAchievements) do
+            self:OnAchievementUnlock(achievement)
+        end
+    end
 end
 
-function Overlay:OnStreakBreak()
+function Overlay:OnStreakBreak(data)
     self.badge:Hide()
     self:Refresh()
+    if data and data.newAchievements then
+        for _, achievement in ipairs(data.newAchievements) do
+            self:OnAchievementUnlock(achievement)
+        end
+    end
 end
 
 function Overlay:OnLevelUp(lvlData)
@@ -423,6 +447,27 @@ function Overlay:OnTitleUnlock(titleData)
     if not B.DB:GetSettings().ultraMinimal then
         self.frame:SetBackdropBorderColor(0.6, 1.0, 1.0, 1.0)
         C_Timer.After(0.7, function()
+            self.frame:SetBackdropBorderColor(0.30, 0.55, 1.0, 0.55)
+        end)
+    end
+end
+
+function Overlay:OnAchievementUnlock(achievement)
+    local rewardText = ""
+    if achievement.rewardTitle then
+        rewardText = string.format("  |cff%sTitle: %s|r", achievement.rewardTitle.color or "A335EE", achievement.rewardTitle.title or "Title")
+    end
+    local link = (B.Achievements and B.Achievements.GetChatLink and B.Achievements:GetChatLink(achievement)) or string.format("|cffffd700[%s]|r", achievement.title or "Achievement")
+    local message = string.format("|cffA0E4FFBouncy|r  Achievement earned: %s |cff%s+%d points|r%s",
+        link, B.COLOR.DIM, achievement.points or 0, rewardText)
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage(message)
+    else
+        print(message)
+    end
+    if not B.DB:GetSettings().ultraMinimal then
+        self.frame:SetBackdropBorderColor(1.0, 0.82, 0.20, 1.0)
+        C_Timer.After(0.9, function()
             self.frame:SetBackdropBorderColor(0.30, 0.55, 1.0, 0.55)
         end)
     end

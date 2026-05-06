@@ -99,7 +99,8 @@ function Leveling:GetCreatureXPRequirement(level)
     return req
 end
 
-function Leveling:GetCreatureBonusPercent(level)
+function Leveling:GetCreatureBonusPercent(level, prog)
+    if prog and not prog.creatureType then return 0 end
     local stage = self:GetCreatureStage(level or 1)
     local evolutions = math.max(0, (stage.art or 1) - 1)
     local perLevel = math.max(0, level or 1) * 1
@@ -107,12 +108,70 @@ function Leveling:GetCreatureBonusPercent(level)
     return perLevel + evoBonus
 end
 
+
+-------------------------------------------------------------------------------
+-- Level title unlocks (persistent per character)
+-------------------------------------------------------------------------------
+function Leveling:EnsurePlayerTitleState(prog)
+    if type(prog.unlockedPlayerTitles) ~= "table" then
+        prog.unlockedPlayerTitles = {}
+    end
+    if prog.selectedPlayerTitle and (not B.GetLevelTitleByID(prog.selectedPlayerTitle) or not prog.unlockedPlayerTitles[prog.selectedPlayerTitle]) then
+        prog.selectedPlayerTitle = nil
+    end
+end
+
+function Leveling:GetUnlockedPlayerTitles(prog)
+    self:EnsurePlayerTitleState(prog)
+    local out = {}
+    for _, title in ipairs(B.GetLevelTitleMilestones()) do
+        if prog.unlockedPlayerTitles[title.id] then
+            out[#out + 1] = title
+        end
+    end
+    return out
+end
+
+function Leveling:SetSelectedPlayerTitle(prog, titleID)
+    self:EnsurePlayerTitleState(prog)
+    if prog.unlockedPlayerTitles[titleID] and B.GetLevelTitleByID(titleID) then
+        prog.selectedPlayerTitle = titleID
+        return true
+    end
+    return false
+end
+
+function Leveling:GetSelectedPlayerTitle(prog)
+    self:EnsurePlayerTitleState(prog)
+    if prog.selectedPlayerTitle and prog.unlockedPlayerTitles[prog.selectedPlayerTitle] then
+        return B.GetLevelTitleByID(prog.selectedPlayerTitle)
+    end
+    return nil
+end
+
+function Leveling:UnlockPlayerTitlesForLevelRange(prog, oldLevel, newLevel)
+    self:EnsurePlayerTitleState(prog)
+    local unlocked = {}
+    for _, title in ipairs(B.GetLevelTitleMilestones()) do
+        local level = title.level or 1
+        if level > (oldLevel or 1) and level <= (newLevel or 1) and not prog.unlockedPlayerTitles[title.id] then
+            prog.unlockedPlayerTitles[title.id] = true
+            if not prog.selectedPlayerTitle then prog.selectedPlayerTitle = title.id end
+            unlocked[#unlocked + 1] = title
+        end
+    end
+    return unlocked
+end
+
+function Leveling:IsEvolutionLevel(level)
+    local stage = self:GetCreatureStage(level or 1)
+    local nextStage = self:GetCreatureStage((level or 1) + 1)
+    return nextStage.art ~= stage.art
+end
+
 function Leveling:CanEvolve(prog)
     local level = prog.level or 1
-    local stage = self:GetCreatureStage(level)
-    local nextLevel = level + 1
-    local nextStage = self:GetCreatureStage(nextLevel)
-    if nextStage.art == stage.art then return false end
+    if not self:IsEvolutionLevel(level) then return false end
     local req = self:GetCreatureXPRequirement(level)
     return (prog.creatureXP or 0) >= req
 end
@@ -121,11 +180,9 @@ function Leveling:AdvanceCreatureNonEvolutionLevels(prog)
     local changed = false
     while true do
         local level = prog.level or 1
+        if self:IsEvolutionLevel(level) then break end
         local req = self:GetCreatureXPRequirement(level)
         if (prog.creatureXP or 0) < req then break end
-        local stage = self:GetCreatureStage(level)
-        local nextStage = self:GetCreatureStage(level + 1)
-        if nextStage.art ~= stage.art then break end
         prog.creatureXP = (prog.creatureXP or 0) - req
         prog.level = level + 1
         changed = true

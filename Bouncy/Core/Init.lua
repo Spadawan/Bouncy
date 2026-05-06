@@ -23,6 +23,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
     elseif event == "PLAYER_LOGIN" then
         -- Ensure char entry exists before any UI reads it
         B.DB:EnsureChar()
+        if B.Achievements then B.Achievements:InitChatLinks() end
 
         B.Tracker:Init()
         if B.Community then B.Community:Init() end
@@ -93,9 +94,7 @@ SlashCmdList["BOUNCY"] = function(msg)
         B.Config:Toggle()
 
     elseif cmd == "reset" then
-        B.DB:ResetChar()
-        if B.Overlay then B.Overlay:Refresh() end
-        print(string.format("|cff%sBouncy|r Character data reset.", B.COLOR.TITLE))
+        B.DB:ResetCharWithConfirmation()
 
     elseif cmd == "xp" then
         local amount = tonumber(rest or "")
@@ -103,7 +102,8 @@ SlashCmdList["BOUNCY"] = function(msg)
             print(string.format("|cff%sUsage: /bouncy xp <amount>|r", B.COLOR.DIM))
             return
         end
-        B.DB:AddXP(math.floor(amount))
+        local prog = B.DB:AddXP(math.floor(amount))
+        if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
         if B.Overlay then B.Overlay:Refresh() end
         if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
         print(string.format("|cff%sBouncy|r Added %d XP.", B.COLOR.TITLE, math.floor(amount)))
@@ -114,6 +114,8 @@ SlashCmdList["BOUNCY"] = function(msg)
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
+            B.DB:RecordCreatureEvolution()
+            if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
             if B.Overlay then B.Overlay:Refresh() end
             if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
             print(string.format("|cff%sBouncy|r Evolved to level %d.", B.COLOR.TITLE, prog.level))
@@ -126,6 +128,8 @@ SlashCmdList["BOUNCY"] = function(msg)
         for _, t in ipairs(B.CREATURE_TYPES or {}) do
             if t:lower() == wanted then
                 B.DB:SetCreatureType(t)
+                B.DB:RecordCreatureTypeSelection()
+                if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) end
                 if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
                 print(string.format("|cff%sBouncy|r Creature type set to %s.", B.COLOR.TITLE, t))
                 return

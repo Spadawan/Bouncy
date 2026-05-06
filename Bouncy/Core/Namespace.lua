@@ -35,7 +35,7 @@ end
 -- Bunny evolution stages (XP-based)
 -- artwork = placeholder — replace with your own TGA/BLP per level
 -------------------------------------------------------------------------------
-local PLAYER_TITLE_BY_MILESTONE = {
+B.PLAYER_TITLE_BY_MILESTONE = {
     [1]="First Hop",[5]="Light Feet",[10]="Springstep",[15]="Airborne",[20]="High Hopper",
     [25]="Bound Runner",[30]="Leap Adept",[35]="Momentum Keeper",[40]="Sky Strider",
     [45]="Vault Expert",[50]="Jump Veteran",[55]="Arc Master",[60]="Drift Walker",
@@ -46,12 +46,12 @@ local PLAYER_TITLE_BY_MILESTONE = {
 local function BuildPlayerLevels()
     local out = {}
     local threshold = 0
-    local title = PLAYER_TITLE_BY_MILESTONE[1]
+    local title = B.PLAYER_TITLE_BY_MILESTONE[1]
     local earlyNeeds = { [1]=100, [2]=200, [3]=350, [4]=550, [5]=750 }
     local targetNeed99 = 15000
     local growthAfterEarly = math.pow(targetNeed99 / earlyNeeds[5], 1 / (99 - 5))
     for lvl = 1, 100 do
-        if PLAYER_TITLE_BY_MILESTONE[lvl] then title = PLAYER_TITLE_BY_MILESTONE[lvl] end
+        if B.PLAYER_TITLE_BY_MILESTONE[lvl] then title = B.PLAYER_TITLE_BY_MILESTONE[lvl] end
         local artIdx = math.min(8, math.max(1, math.floor((lvl - 1) / 12) + 1))
         out[#out + 1] = {
             level = lvl,
@@ -72,10 +72,67 @@ end
 
 B.LEVELS = BuildPlayerLevels()
 
+-- Returns a stable id for a level-based title.
+function B.GetLevelTitleID(title)
+    return tostring(title or ""):gsub("%s+", "_"):lower()
+end
+
+function B.GetTitleRarityColor(level)
+    level = tonumber(level) or 1
+    if level >= 85 then return "FF8000" end -- legendary
+    if level >= 50 then return "A335EE" end -- epic
+    if level >= 25 then return "0070DD" end -- rare
+    return "FFFFFF" -- common
+end
+
+-- Returns unique level-based and achievement-reward title unlocks in progression order.
+function B.GetLevelTitleMilestones()
+    local milestones = {}
+    local seen = {}
+    for _, lvl in ipairs(B.LEVELS or {}) do
+        local title = lvl.name
+        local id = B.GetLevelTitleID(title)
+        if title and not seen[id] then
+            milestones[#milestones + 1] = {
+                id = id,
+                level = lvl.level,
+                title = title,
+                color = B.GetTitleRarityColor(lvl.level),
+                source = "level",
+            }
+            seen[id] = true
+        end
+    end
+    if B.Achievements and B.Achievements.GetTitleRewards then
+        for _, reward in ipairs(B.Achievements:GetTitleRewards()) do
+            if reward.id and reward.title and not seen[reward.id] then
+                milestones[#milestones + 1] = {
+                    id = reward.id,
+                    level = reward.level or 999,
+                    title = reward.title,
+                    color = reward.color or "A335EE",
+                    source = "achievement",
+                }
+                seen[reward.id] = true
+            end
+        end
+    end
+    return milestones
+end
+
+function B.GetLevelTitleByID(id)
+    for _, title in ipairs(B.GetLevelTitleMilestones()) do
+        if title.id == id then return title end
+    end
+    return nil
+end
+
+
 B.CREATURE_LEVELS = {
     Astral = BuildCreatureLevelSet("Astral"),
     Fire = BuildCreatureLevelSet("Fire"),
     Water = BuildCreatureLevelSet("Water"),
+    Electric = BuildCreatureLevelSet("Electric"),
 }
 
 -------------------------------------------------------------------------------
