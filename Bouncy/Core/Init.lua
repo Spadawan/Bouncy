@@ -94,9 +94,7 @@ SlashCmdList["BOUNCY"] = function(msg)
         B.Config:Toggle()
 
     elseif cmd == "reset" then
-        B.DB:ResetChar()
-        if B.Overlay then B.Overlay:Refresh() end
-        print(string.format("|cff%sBouncy|r Character data reset.", B.COLOR.TITLE))
+        B.DB:ResetCharWithConfirmation()
 
     elseif cmd == "xp" then
         local amount = tonumber(rest or "")

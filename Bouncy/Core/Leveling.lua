@@ -114,20 +114,9 @@ end
 function Leveling:EnsurePlayerTitleState(prog)
     if type(prog.unlockedPlayerTitles) ~= "table" then
         prog.unlockedPlayerTitles = {}
-        local currentLevel = self:GetLevelForXP(prog.xp or 0, true).level or 1
-        for _, title in ipairs(B.GetLevelTitleMilestones()) do
-            if (title.level or 1) <= currentLevel then
-                prog.unlockedPlayerTitles[title.id] = true
-            end
-        end
     end
-
-    local firstTitle = B.GetLevelTitleMilestones()[1]
-    if firstTitle then
-        prog.unlockedPlayerTitles[firstTitle.id] = true
-        if not B.GetLevelTitleByID(prog.selectedPlayerTitle) or not prog.unlockedPlayerTitles[prog.selectedPlayerTitle] then
-            prog.selectedPlayerTitle = firstTitle.id
-        end
+    if prog.selectedPlayerTitle and (not B.GetLevelTitleByID(prog.selectedPlayerTitle) or not prog.unlockedPlayerTitles[prog.selectedPlayerTitle]) then
+        prog.selectedPlayerTitle = nil
     end
 end
 
@@ -153,7 +142,10 @@ end
 
 function Leveling:GetSelectedPlayerTitle(prog)
     self:EnsurePlayerTitleState(prog)
-    return B.GetLevelTitleByID(prog.selectedPlayerTitle) or B.GetLevelTitleMilestones()[1]
+    if prog.selectedPlayerTitle and prog.unlockedPlayerTitles[prog.selectedPlayerTitle] then
+        return B.GetLevelTitleByID(prog.selectedPlayerTitle)
+    end
+    return nil
 end
 
 function Leveling:UnlockPlayerTitlesForLevelRange(prog, oldLevel, newLevel)
@@ -163,6 +155,7 @@ function Leveling:UnlockPlayerTitlesForLevelRange(prog, oldLevel, newLevel)
         local level = title.level or 1
         if level > (oldLevel or 1) and level <= (newLevel or 1) and not prog.unlockedPlayerTitles[title.id] then
             prog.unlockedPlayerTitles[title.id] = true
+            if not prog.selectedPlayerTitle then prog.selectedPlayerTitle = title.id end
             unlocked[#unlocked + 1] = title
         end
     end

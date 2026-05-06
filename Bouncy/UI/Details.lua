@@ -554,7 +554,11 @@ function Details:_RefreshStats(p)
         B.COLOR.STREAK, char.bestStreak or 0))
 
     local selectedTitle = B.Leveling:GetSelectedPlayerTitle(prog)
-    p.titleLine:SetText(string.format("Displayed title: |cff%s%s|r", selectedTitle.color or "33FF66", selectedTitle.title or "First Hop"))
+    if selectedTitle then
+        p.titleLine:SetText(string.format("Displayed title: |cff%s%s|r", selectedTitle.color or "33FF66", selectedTitle.title or ""))
+    else
+        p.titleLine:SetText(string.format("Displayed title: |cff%sNone unlocked yet|r", B.COLOR.DIM))
+    end
 
     if UIDROPDOWNMENU_OPEN_MENU ~= p.titleDropdown then
         UIDropDownMenu_Initialize(p.titleDropdown, function(self, level)
@@ -574,8 +578,12 @@ function Details:_RefreshStats(p)
                 UIDropDownMenu_AddButton(info, level)
             end
         end)
-        UIDropDownMenu_SetSelectedValue(p.titleDropdown, selectedTitle.id)
-        UIDropDownMenu_SetText(p.titleDropdown, selectedTitle.title or "Select title")
+        if selectedTitle then
+            UIDropDownMenu_SetSelectedValue(p.titleDropdown, selectedTitle.id)
+            UIDropDownMenu_SetText(p.titleDropdown, selectedTitle.title or "Select title")
+        else
+            UIDropDownMenu_SetText(p.titleDropdown, "No title unlocked")
+        end
     end
 
     local nextTitleName = nil
@@ -1611,10 +1619,7 @@ function Details:_BuildCustomPanel(p)
     resetBtn:SetPoint("TOPLEFT", c, "TOPLEFT", 8, y)
     resetBtn:SetText("Reset this character")
     resetBtn:SetScript("OnClick", function()
-        B.DB:ResetChar()
-        if B.Overlay then B.Overlay:Refresh() end
-        if B.Details and B.Details.frame:IsShown() then B.Details:Refresh() end
-        print(string.format("|cffA0E4FFBouncy|r  Character data reset."))
+        B.DB:ResetCharWithConfirmation()
     end)
     y = y - 30
 

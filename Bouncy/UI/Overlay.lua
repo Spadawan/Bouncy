@@ -333,7 +333,7 @@ function Overlay:Refresh()
     if selectedTitle and selectedTitle.title then
         self.titleText:SetText(string.format("|cff%s%s|r", selectedTitle.color or "A0E4FF", selectedTitle.title))
     else
-        self.titleText:SetText("BOUNCY")
+        self.titleText:SetText("")
     end
 
     local lvlData = B.Leveling:GetLevelForXP(prog.xp)

@@ -271,3 +271,31 @@ function DB:ResetChar()
     Bouncy_DB.progression[key] = nil
     self:EnsureChar(key)
 end
+
+function DB:ResetCharWithConfirmation(confirm)
+    if confirm == true then
+        self:ResetChar()
+        return true
+    end
+    StaticPopupDialogs = StaticPopupDialogs or {}
+    StaticPopupDialogs["BOUNCY_RESET_CHARACTER"] = StaticPopupDialogs["BOUNCY_RESET_CHARACTER"] or {
+        text = "Are you sure you want to reset this character's Bouncy data?",
+        button1 = "Yes",
+        button2 = "No",
+        OnAccept = function()
+            B.DB:ResetChar()
+            if B.Overlay then B.Overlay:Refresh() end
+            if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
+            print(string.format("|cff%sBouncy|r Character data reset.", B.COLOR.TITLE))
+        end,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+        preferredIndex = 3,
+    }
+    if StaticPopup_Show then
+        StaticPopup_Show("BOUNCY_RESET_CHARACTER")
+        return false
+    end
+    return false
+end
