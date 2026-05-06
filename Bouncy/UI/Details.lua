@@ -21,6 +21,39 @@ local PANEL_CUSTOM   = 5
 local activePanel    = PANEL_STATS
 local activeCharKey  = nil   -- which char is selected in zones panel
 
+local function EnsureCreatureStats(char)
+    if type(char) ~= "table" then return nil end
+    if type(char.creatureStats) ~= "table" then char.creatureStats = {} end
+    for _, field in ipairs({ "feeds", "consecutiveFeeds", "evolutions", "typeSelections" }) do
+        if type(char.creatureStats[field]) ~= "number" then char.creatureStats[field] = 0 end
+    end
+    return char.creatureStats
+end
+
+local function RecordCreatureFeed()
+    if B.DB and type(B.DB.RecordCreatureFeed) == "function" then
+        return B.DB:RecordCreatureFeed()
+    end
+    local char = B.DB and type(B.DB.EnsureChar) == "function" and B.DB:EnsureChar() or nil
+    local stats = EnsureCreatureStats(char)
+    if not stats then return nil end
+    stats.feeds = stats.feeds + 1
+    stats.consecutiveFeeds = stats.consecutiveFeeds + 1
+    return stats
+end
+
+local function RecordCreatureEvolution()
+    if B.DB and type(B.DB.RecordCreatureEvolution) == "function" then
+        return B.DB:RecordCreatureEvolution()
+    end
+    local char = B.DB and type(B.DB.EnsureChar) == "function" and B.DB:EnsureChar() or nil
+    local stats = EnsureCreatureStats(char)
+    if not stats then return nil end
+    stats.evolutions = stats.evolutions + 1
+    stats.consecutiveFeeds = 0
+    return stats
+end
+
 local function PlayCreatureFeedAnim(p)
     if not p._feedAnim then
         local ag = p.artwork:CreateAnimationGroup()
@@ -417,7 +450,7 @@ function Details:_BuildStatsPanel(p)
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
-            B.DB:RecordCreatureEvolution()
+            RecordCreatureEvolution()
             PlayCreatureEvolveAnim(p)
             PlayCreatureLevelupShine(p)
             SpawnCreatureParticles(p, true)
@@ -428,7 +461,7 @@ function Details:_BuildStatsPanel(p)
             if (prog.xp or 0) >= feedAmount then
                 prog.xp = prog.xp - feedAmount
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
-                B.DB:RecordCreatureFeed()
+                RecordCreatureFeed()
                 local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
                 PlayCreatureFeedAnim(p)
                 if autoLevel then PlayCreatureLevelupShine(p) end
