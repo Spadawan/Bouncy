@@ -103,7 +103,8 @@ SlashCmdList["BOUNCY"] = function(msg)
             print(string.format("|cff%sUsage: /bouncy xp <amount>|r", B.COLOR.DIM))
             return
         end
-        B.DB:AddXP(math.floor(amount))
+        local prog = B.DB:AddXP(math.floor(amount))
+        if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
         if B.Overlay then B.Overlay:Refresh() end
         if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
         print(string.format("|cff%sBouncy|r Added %d XP.", B.COLOR.TITLE, math.floor(amount)))
@@ -114,6 +115,7 @@ SlashCmdList["BOUNCY"] = function(msg)
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
+            if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
             if B.Overlay then B.Overlay:Refresh() end
             if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
             print(string.format("|cff%sBouncy|r Evolved to level %d.", B.COLOR.TITLE, prog.level))

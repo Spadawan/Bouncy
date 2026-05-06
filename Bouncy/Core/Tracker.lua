@@ -50,7 +50,8 @@ end
 local function BreakStreak(reason)
     if streak > 0 then
         B.DB:RecordStreak(streak)
-        Fire("STREAK_BREAK", { streak = streak, reason = reason })
+        local newAchievements = B.Achievements and B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) or nil
+        Fire("STREAK_BREAK", { streak = streak, reason = reason, newAchievements = newAchievements })
     end
     streak = 0
     if streakTimer then
@@ -97,10 +98,12 @@ local function OnJump()
     local newLvlData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
 
     B.DB:RecordJump(zone)
+    local newAchievements = B.Achievements and B.Achievements:Evaluate(B.DB:GetChar(), prog) or nil
     local newLevel  = nil
-    local newTitle  = nil
+    local newTitles = nil
     if (newLvlData.level or 1) > (oldLvlData.level or 1) then
-        newTitle = { title = newLvlData.name or "New Title", color = "33FF66" }
+        newTitles = B.Leveling:UnlockPlayerTitlesForLevelRange(prog, oldLvlData.level or 1, newLvlData.level or 1)
+        if #newTitles == 0 then newTitles = nil end
     end
 
     Fire("JUMP", {
@@ -113,7 +116,9 @@ local function OnJump()
         bonusXP   = bonusXP,
         prog      = prog,
         levelUp   = newLevel,
-        newTitle  = newTitle,
+        newTitles = newTitles,
+        newTitle  = newTitles and newTitles[1] or nil,
+        newAchievements = newAchievements,
     })
 end
 

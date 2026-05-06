@@ -14,10 +14,10 @@ function Config:Init()
 end
 
 function Config:Toggle()
-    -- Open Details and switch to the Customize tab (tab 4)
+    -- Open Details and switch to the Customize tab (tab 5)
     if B.Details then
         B.Details:Show()
-        B.Details:ShowPanel(4)
+        B.Details:ShowPanel(5)
         if B.Overlay and B.Overlay.frame then
             B.Overlay:Show()
         end

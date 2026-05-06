@@ -22,7 +22,7 @@ local DEFAULTS = {
         -- Minimal mode: transparent bg/border by default; elements controlled individually
         ultraMinimal     = true,
         -- Overlay elements
-        showTitle        = false,   -- "BOUNCY" label
+        showTitle        = false,   -- selected unlocked title above the counter
         showJumpsLabel   = true,    -- "JUMPS" sub-label
         showXPBarAndLevel= true,    -- XP bar + level text (single toggle)
         showPlusOne      = true,    -- floating +Exp animation
@@ -91,7 +91,8 @@ function DB:EnsureChar(key)
             realm      = GetRealmName() or "Unknown",
             class      = select(2, UnitClass("player")) or "UNKNOWN",
             totalJumps = 0,
-                bestStreak = 0,
+            bestStreak = 0,
+            achievements = {}, -- [achievementID] = { earnedAt = timestamp }
             byZone     = {},   -- [zoneName] = jumpCount
             daily      = { dayStart = 0, jumps = 0 },
             weekly     = { weekStart = 0, jumps = 0 },
@@ -189,6 +190,9 @@ function DB:GetProgression()
     end
     if type(Bouncy_DB.progression[key].bonusXPFraction) ~= "number" then
         Bouncy_DB.progression[key].bonusXPFraction = 0
+    end
+    if B.Leveling and B.Leveling.EnsurePlayerTitleState then
+        B.Leveling:EnsurePlayerTitleState(Bouncy_DB.progression[key])
     end
     return Bouncy_DB.progression[key]
 end

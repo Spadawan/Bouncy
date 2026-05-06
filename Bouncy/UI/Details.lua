@@ -15,7 +15,8 @@ local TAB_H  = 28
 local PANEL_STATS    = 1
 local PANEL_ZONES    = 2
 local PANEL_LEADERS  = 3
-local PANEL_CUSTOM   = 4
+local PANEL_ACHIEVEMENTS = 4
+local PANEL_CUSTOM   = 5
 
 local activePanel    = PANEL_STATS
 local activeCharKey  = nil   -- which char is selected in zones panel
@@ -233,10 +234,12 @@ function Details:Init()
 
     -- Tabs
     self.tabs = {}
-    local tabLabels = { "Stats", "Zones", "Leaderboard", "Customize" }
-    local tabX      = { 10, 130, 250, 370 }
+    local tabLabels = { "Stats", "Zones", "Leaderboard", "Achievements", "Customize" }
+    local tabX      = { 8, 114, 220, 326, 432 }
     for i, lbl in ipairs(tabLabels) do
         local btn = CreateTab(f, lbl, i, tabX[i])
+        btn:SetWidth(100)
+        if lbl == "Achievements" then btn.label:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE") end
         btn:SetScript("OnClick", function() Details:ShowPanel(i) end)
         self.tabs[i] = btn
     end
@@ -245,7 +248,7 @@ function Details:Init()
     local panelY = -38 - TAB_H - 4
 
     self.panels = {}
-    for i = 1, 4 do
+    for i = 1, 5 do
         local p = CreateFrame("Frame", nil, f)
         p:SetPoint("TOPLEFT",  f, "TOPLEFT",  8,  panelY)
         p:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8, 8)
@@ -259,6 +262,7 @@ function Details:Init()
     self:_BuildStatsPanel(self.panels[PANEL_STATS])
     self:_BuildZonesPanel(self.panels[PANEL_ZONES])
     self:_BuildLeaderPanel(self.panels[PANEL_LEADERS])
+    self:_BuildAchievementsPanel(self.panels[PANEL_ACHIEVEMENTS])
     self:_BuildCustomPanel(self.panels[PANEL_CUSTOM])
 
     self:ShowPanel(PANEL_STATS)
@@ -327,14 +331,19 @@ function Details:_BuildStatsPanel(p)
     lvlName:SetPoint("TOPLEFT", artwork, "TOPRIGHT", 18, -6)
     p.lvlName = lvlName
 
-    -- Title line (player title from jumps milestone)
+    -- Title line + selector (level-based titles, unlocked once)
     local titleLine = MakeFont(p, 11, "")
     titleLine:SetPoint("TOPLEFT", artwork, "TOPRIGHT", 18, -26)
     p.titleLine = titleLine
 
+    local titleDropdown = CreateFrame("Frame", nil, p, "UIDropDownMenuTemplate")
+    titleDropdown:SetPoint("TOPLEFT", artwork, "TOPRIGHT", -2, -38)
+    UIDropDownMenu_SetWidth(titleDropdown, 205)
+    p.titleDropdown = titleDropdown
+
     local xpBar = CreateFrame("StatusBar", nil, p)
     xpBar:SetSize(230, 14)
-    xpBar:SetPoint("TOPLEFT", artwork, "TOPRIGHT", 18, -46)
+    xpBar:SetPoint("TOPLEFT", artwork, "TOPRIGHT", 18, -78)
     xpBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     xpBar:SetStatusBarColor(0.40, 0.95, 0.40)
     xpBar:SetMinMaxValues(0, 1)
@@ -428,6 +437,7 @@ function Details:_BuildStatsPanel(p)
                 PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
             end
         end
+        if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
         Details:Refresh()
     end)
     p.evolveBtn:SetPoint("TOP", artwork, "BOTTOM", 0, -8)
@@ -543,21 +553,41 @@ function Details:_RefreshStats(p)
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",
         B.COLOR.STREAK, char.bestStreak or 0))
 
-    -- Current title (level-based only)
-    p.titleLine:SetText(string.format("Title: |cff33FF66%s|r", playerLevelData.name or "First Hop"))
+    local selectedTitle = B.Leveling:GetSelectedPlayerTitle(prog)
+    p.titleLine:SetText(string.format("Displayed title: |cff%s%s|r", selectedTitle.color or "33FF66", selectedTitle.title or "First Hop"))
 
-    -- Next title goal (level-based only)
+    UIDropDownMenu_Initialize(p.titleDropdown, function(self, level)
+        local unlockedTitles = B.Leveling:GetUnlockedPlayerTitles(prog)
+        for _, title in ipairs(unlockedTitles) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = string.format("|cff%s%s|r", title.color or "33FF66", title.title or "")
+            info.value = title.id
+            info.checked = (title.id == prog.selectedPlayerTitle)
+            info.func = function()
+                if B.Leveling:SetSelectedPlayerTitle(prog, title.id) then
+                    UIDropDownMenu_SetSelectedValue(p.titleDropdown, title.id)
+                    UIDropDownMenu_SetText(p.titleDropdown, title.title)
+                    if B.Overlay then B.Overlay:Refresh() end
+                    Details:_RefreshStats(p)
+                end
+            end
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end)
+    UIDropDownMenu_SetSelectedValue(p.titleDropdown, selectedTitle.id)
+    UIDropDownMenu_SetText(p.titleDropdown, selectedTitle.title or "Select title")
+
     local nextTitleName = nil
-    for _, lvl in ipairs(B.LEVELS or {}) do
-        if (lvl.level or 1) > (playerLevelData.level or 1) and lvl.name ~= playerLevelData.name then
-            nextTitleName = lvl.name
+    for _, title in ipairs(B.GetLevelTitleMilestones()) do
+        if not prog.unlockedPlayerTitles[title.id] then
+            nextTitleName = title.title
             break
         end
     end
     if nextTitleName then
-        p.nextTitleLabel:SetText(string.format("|cff%sNext: |r|cff33FF66%s|r", B.COLOR.DIM, nextTitleName))
+        p.nextTitleLabel:SetText(string.format("|cff%sNext title: |r|cff33FF66%s|r", B.COLOR.DIM, nextTitleName))
     else
-        p.nextTitleLabel:SetText(string.format("|cff%sTop title reached!|r", B.COLOR.LEVEL_UP))
+        p.nextTitleLabel:SetText(string.format("|cff%sAll titles unlocked!|r", B.COLOR.LEVEL_UP))
     end
 
     local sessionJumps = (B.Tracker and B.Tracker.GetSessionJumps and B.Tracker:GetSessionJumps()) or 0
@@ -956,6 +986,234 @@ function Details:_RefreshLeaders(p)
     end
 end
 
+
+-------------------------------------------------------------------------------
+-- PANEL 4 — Achievements
+-------------------------------------------------------------------------------
+local ACH_FILTERS = {
+    { key = "all", label = "All" },
+    { key = "earned", label = "Earned" },
+    { key = "locked", label = "Locked" },
+}
+
+function Details:_BuildAchievementsPanel(p)
+    p._filter = "all"
+
+    local summary = CreateFrame("Frame", nil, p, "BackdropTemplate")
+    summary:SetSize(512, 54)
+    summary:SetPoint("TOP", p, "TOP", 0, -6)
+    summary:SetBackdrop({ bgFile="Interface\\ChatFrame\\ChatFrameBackground",
+                          edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+                          edgeSize=10, insets={left=3,right=3,top=3,bottom=3} })
+    summary:SetBackdropColor(0.05, 0.05, 0.12, 0.92)
+    summary:SetBackdropBorderColor(0.55, 0.43, 0.18, 0.9)
+    p.achSummary = summary
+
+    local icon = summary:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(38, 38)
+    icon:SetPoint("LEFT", summary, "LEFT", 10, 0)
+    icon:SetTexture("Interface\\Icons\\Achievement_General")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local title = MakeFont(summary, 14, "OUTLINE")
+    title:SetPoint("TOPLEFT", summary, "TOPLEFT", 58, -9)
+    title:SetText("|cffffd700Bouncy Achievements|r")
+    p.achSummaryTitle = title
+
+    local subtitle = MakeFont(summary, 10, "")
+    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+    p.achSummarySub = subtitle
+
+    local barBG = summary:CreateTexture(nil, "BACKGROUND")
+    barBG:SetHeight(8)
+    barBG:SetPoint("BOTTOMLEFT", summary, "BOTTOMLEFT", 58, 8)
+    barBG:SetPoint("BOTTOMRIGHT", summary, "BOTTOMRIGHT", -14, 8)
+    barBG:SetColorTexture(0.08, 0.08, 0.08, 0.9)
+
+    local bar = summary:CreateTexture(nil, "ARTWORK")
+    bar:SetHeight(8)
+    bar:SetPoint("LEFT", barBG, "LEFT", 0, 0)
+    bar:SetColorTexture(0.95, 0.68, 0.12, 0.9)
+    p.achSummaryBar = bar
+    p.achSummaryBarBG = barBG
+
+    p.achFilterButtons = {}
+    local x = 4
+    for _, filter in ipairs(ACH_FILTERS) do
+        local btn = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
+        btn:SetSize(86, 22)
+        btn:SetPoint("TOPLEFT", p, "TOPLEFT", x, -66)
+        btn:SetText(filter.label)
+        btn:SetScript("OnClick", function()
+            p._filter = filter.key
+            p._achKey = nil
+            Details:_RefreshAchievements(p)
+        end)
+        p.achFilterButtons[filter.key] = btn
+        x = x + 90
+    end
+
+    local sf, content = CreateScrollPanel(p, DW - 20, 334)
+    sf:SetPoint("TOPLEFT", p, "TOPLEFT", 4, -94)
+    p.achSF = sf
+    p.achContent = content
+end
+
+local function AchievementEarnedText(char, achievement)
+    local state = char and char.achievements and char.achievements[achievement.id]
+    if state and state.earnedAt then
+        return date("Earned %Y-%m-%d", state.earnedAt)
+    end
+    return "In progress"
+end
+
+function Details:_RefreshAchievements(p)
+    if not B.Achievements then return end
+    local char = B.DB:GetChar()
+    local prog = B.DB:GetProgression()
+    if not char then return end
+    B.Achievements:Evaluate(char, prog)
+
+    local unlocked, total, earnedPoints, totalPoints = B.Achievements:GetSummary(char, prog)
+    local completion = total > 0 and (unlocked / total) or 0
+    p.achSummarySub:SetText(string.format("|cff%s%d/%d earned|r   |cffffd700%d/%d points|r",
+        B.COLOR.DIM, unlocked, total, earnedPoints, totalPoints))
+    local bgWidth = p.achSummaryBarBG:GetWidth() or 430
+    if bgWidth < 10 then bgWidth = 430 end
+    p.achSummaryBar:SetWidth(math.max(1, bgWidth * completion))
+
+    for key, btn in pairs(p.achFilterButtons or {}) do
+        btn:SetEnabled(key ~= p._filter)
+    end
+
+    local achievements = {}
+    for _, achievement in ipairs(B.Achievements:GetAll()) do
+        local isUnlocked = B.Achievements:IsUnlocked(char, achievement.id)
+        if p._filter == "all" or (p._filter == "earned" and isUnlocked) or (p._filter == "locked" and not isUnlocked) then
+            achievements[#achievements + 1] = achievement
+        end
+    end
+
+    local achKey = p._filter .. ":" .. tostring(#achievements) .. ":" .. tostring(unlocked)
+    local content = p.achContent
+    if p._achKey ~= achKey then
+        p._achKey = achKey
+        content:SetHeight(1)
+        for _, child in ipairs({content:GetChildren()}) do child:Hide() end
+        for _, child in ipairs({content:GetRegions()}) do child:Hide() end
+        p._achWidgets = {}
+
+        local yOff = -6
+        local lastCategory = nil
+        local rowH = 64
+        for _, achievement in ipairs(achievements) do
+            if achievement.category ~= lastCategory then
+                local hdr = content:CreateFontString(nil, "OVERLAY")
+                hdr:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+                hdr:SetPoint("TOPLEFT", content, "TOPLEFT", 8, yOff)
+                hdr:SetText(string.format("|cff%s%s|r", B.COLOR.TITLE, achievement.category or "Achievements"))
+                yOff = yOff - 22
+                lastCategory = achievement.category
+            end
+
+            local row = CreateFrame("Frame", nil, content, "BackdropTemplate")
+            row:SetSize(490, rowH)
+            row:SetPoint("TOPLEFT", content, "TOPLEFT", 8, yOff)
+            row:SetBackdrop({ bgFile="Interface\\ChatFrame\\ChatFrameBackground",
+                              edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+                              edgeSize=10, insets={left=3,right=3,top=3,bottom=3} })
+
+            local rowIcon = row:CreateTexture(nil, "ARTWORK")
+            rowIcon:SetSize(42, 42)
+            rowIcon:SetPoint("LEFT", row, "LEFT", 10, 6)
+            rowIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+            local iconBorder = row:CreateTexture(nil, "OVERLAY")
+            iconBorder:SetSize(48, 48)
+            iconBorder:SetPoint("CENTER", rowIcon, "CENTER", 0, 0)
+            iconBorder:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+
+            local titleFS = row:CreateFontString(nil, "OVERLAY")
+            titleFS:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            titleFS:SetPoint("TOPLEFT", row, "TOPLEFT", 62, -8)
+            titleFS:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+            titleFS:SetJustifyH("LEFT")
+
+            local descFS = row:CreateFontString(nil, "OVERLAY")
+            descFS:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+            descFS:SetPoint("TOPLEFT", titleFS, "BOTTOMLEFT", 0, -2)
+            descFS:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+            descFS:SetJustifyH("LEFT")
+            descFS:SetWordWrap(true)
+
+            local pointsFS = row:CreateFontString(nil, "OVERLAY")
+            pointsFS:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
+            pointsFS:SetPoint("TOPRIGHT", row, "TOPRIGHT", -14, -8)
+
+            local statusFS = row:CreateFontString(nil, "OVERLAY")
+            statusFS:SetFont("Fonts\\FRIZQT__.TTF", 9, "")
+            statusFS:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 62, 8)
+
+            local progBG = row:CreateTexture(nil, "BACKGROUND")
+            progBG:SetHeight(6)
+            progBG:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 190, 10)
+            progBG:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -14, 10)
+            progBG:SetColorTexture(0.08, 0.08, 0.08, 0.95)
+
+            local progBar = row:CreateTexture(nil, "ARTWORK")
+            progBar:SetHeight(6)
+            progBar:SetPoint("LEFT", progBG, "LEFT", 0, 0)
+
+            table.insert(p._achWidgets, {
+                achievement=achievement, row=row, icon=rowIcon, titleFS=titleFS, descFS=descFS,
+                pointsFS=pointsFS, statusFS=statusFS, progBG=progBG, progBar=progBar,
+            })
+            yOff = yOff - rowH - 6
+        end
+
+        if #achievements == 0 then
+            local empty = content:CreateFontString(nil, "OVERLAY")
+            empty:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            empty:SetPoint("TOP", content, "TOP", 0, -40)
+            empty:SetText(string.format("|cff%sNothing to show for this filter yet.|r", B.COLOR.DIM))
+            yOff = -90
+        end
+        content:SetHeight(math.abs(yOff) + 20)
+    end
+
+    for _, w in ipairs(p._achWidgets or {}) do
+        local achievement = w.achievement
+        local current, goal = B.Achievements:GetProgress(achievement, char, prog)
+        local isUnlocked = B.Achievements:IsUnlocked(char, achievement.id)
+        local pct = math.min(1, current / math.max(1, goal))
+        w.icon:SetTexture(achievement.icon or "Interface\\Icons\\Achievement_General")
+        if w.icon.SetDesaturated then w.icon:SetDesaturated(not isUnlocked) end
+        w.row:SetBackdropColor(isUnlocked and 0.12 or 0.035, isUnlocked and 0.09 or 0.035, isUnlocked and 0.02 or 0.07, isUnlocked and 0.94 or 0.85)
+        w.row:SetBackdropBorderColor(isUnlocked and 0.85 or 0.24, isUnlocked and 0.62 or 0.24, isUnlocked and 0.18 or 0.42, isUnlocked and 0.95 or 0.65)
+        w.titleFS:SetText(string.format("|cff%s%s|r", isUnlocked and "FFD700" or "BBBBBB", achievement.title or "Achievement"))
+        w.descFS:SetText(string.format("|cff%s%s|r", isUnlocked and "FFFFFF" or "888888", achievement.description or ""))
+        w.pointsFS:SetText(string.format("|cffffd700%d|r", achievement.points or 0))
+        w.statusFS:SetText(string.format("|cff%s%s  %s/%s|r",
+            isUnlocked and "88FF88" or B.COLOR.DIM,
+            isUnlocked and AchievementEarnedText(char, achievement) or "Progress",
+            B.FormatNum(current), B.FormatNum(goal)))
+        local progWidth = w.progBG:GetWidth() or 280
+        if progWidth < 10 then progWidth = 280 end
+        w.progBar:SetWidth(math.max(1, progWidth * pct))
+        w.progBar:SetColorTexture(isUnlocked and 0.95 or 0.25, isUnlocked and 0.68 or 0.45, isUnlocked and 0.12 or 0.95, 0.95)
+        w.row:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(achievement.title or "Achievement", 1, 0.82, 0)
+            GameTooltip:AddLine(achievement.description or "", 1, 1, 1, true)
+            GameTooltip:AddLine(string.format("Progress: %s/%s", B.FormatNum(current), B.FormatNum(goal)), 0.7, 0.9, 1.0)
+            GameTooltip:AddLine(string.format("Achievement Points: %d", achievement.points or 0), 1.0, 0.82, 0.0)
+            if isUnlocked then GameTooltip:AddLine(AchievementEarnedText(char, achievement), 0.5, 1.0, 0.5) end
+            GameTooltip:Show()
+        end)
+        w.row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
+end
+
 -------------------------------------------------------------------------------
 -- Particle background (subtle animated dots)
 -------------------------------------------------------------------------------
@@ -991,7 +1249,7 @@ function Details:_BuildParticleBG(parent)
 end
 
 -------------------------------------------------------------------------------
--- PANEL 4 — Customize
+-- PANEL 5 — Customize
 -- All controls apply immediately and call Overlay:ApplySettings().
 -------------------------------------------------------------------------------
 
@@ -1255,7 +1513,8 @@ function Details:_BuildCustomPanel(p)
         "Hides the backdrop panel and border, keeping only text elements.",
         function() return s.ultraMinimal end,
         function(v) s.ultraMinimal = v end)
-    Checkbox("Show title  (\"BOUNCY\" label)", nil,
+    Checkbox("Show selected title",
+        "Displays your chosen unlocked title above the jump counter.",
         function() return s.showTitle     end,
         function(v) s.showTitle = v        end)
     Checkbox("Show \"JUMPS\" sub-label", nil,
@@ -1357,6 +1616,8 @@ function Details:Refresh()
         self:_RefreshZones(self.panels[PANEL_ZONES])
     elseif activePanel == PANEL_LEADERS then
         self:_RefreshLeaders(self.panels[PANEL_LEADERS])
+    elseif activePanel == PANEL_ACHIEVEMENTS then
+        self:_RefreshAchievements(self.panels[PANEL_ACHIEVEMENTS])
     -- PANEL_CUSTOM has no periodic refresh — controls update settings live via callbacks
     end
 end

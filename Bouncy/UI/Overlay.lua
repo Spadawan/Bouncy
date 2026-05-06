@@ -310,7 +310,7 @@ function Overlay:Init()
 
     B.Tracker:RegisterCallback(function(event, data)
         if event == "JUMP"                then self:OnJump(data)
-        elseif event == "STREAK_BREAK"    then self:OnStreakBreak()
+        elseif event == "STREAK_BREAK"    then self:OnStreakBreak(data)
         elseif event == "OVERLAY_REFRESH" then self:Refresh()
         end
     end)
@@ -329,6 +329,12 @@ function Overlay:Refresh()
     local s    = B.DB:GetSettings()
 
     self.jumpNum:SetText(B.FormatNum(char.totalJumps))
+    local selectedTitle = B.Leveling:GetSelectedPlayerTitle(prog)
+    if selectedTitle and selectedTitle.title then
+        self.titleText:SetText(string.format("|cff%s%s|r", selectedTitle.color or "A0E4FF", selectedTitle.title))
+    else
+        self.titleText:SetText("BOUNCY")
+    end
 
     local lvlData = B.Leveling:GetLevelForXP(prog.xp)
     self.lvlText:SetText("Lv." .. lvlData.level)
@@ -397,12 +403,28 @@ function Overlay:OnJump(data)
 
     self:Refresh()
 
-    if data.newTitle then self:OnTitleUnlock(data.newTitle) end
+    if data.newTitles then
+        for _, titleData in ipairs(data.newTitles) do
+            self:OnTitleUnlock(titleData)
+        end
+    elseif data.newTitle then
+        self:OnTitleUnlock(data.newTitle)
+    end
+    if data.newAchievements then
+        for _, achievement in ipairs(data.newAchievements) do
+            self:OnAchievementUnlock(achievement)
+        end
+    end
 end
 
-function Overlay:OnStreakBreak()
+function Overlay:OnStreakBreak(data)
     self.badge:Hide()
     self:Refresh()
+    if data and data.newAchievements then
+        for _, achievement in ipairs(data.newAchievements) do
+            self:OnAchievementUnlock(achievement)
+        end
+    end
 end
 
 function Overlay:OnLevelUp(lvlData)
@@ -423,6 +445,17 @@ function Overlay:OnTitleUnlock(titleData)
     if not B.DB:GetSettings().ultraMinimal then
         self.frame:SetBackdropBorderColor(0.6, 1.0, 1.0, 1.0)
         C_Timer.After(0.7, function()
+            self.frame:SetBackdropBorderColor(0.30, 0.55, 1.0, 0.55)
+        end)
+    end
+end
+
+function Overlay:OnAchievementUnlock(achievement)
+    print(string.format("|cffA0E4FFBouncy|r  Achievement earned: |cffffd700[%s]|r |cff%s+%d points|r",
+        achievement.title or "Achievement", B.COLOR.DIM, achievement.points or 0))
+    if not B.DB:GetSettings().ultraMinimal then
+        self.frame:SetBackdropBorderColor(1.0, 0.82, 0.20, 1.0)
+        C_Timer.After(0.9, function()
             self.frame:SetBackdropBorderColor(0.30, 0.55, 1.0, 0.55)
         end)
     end
