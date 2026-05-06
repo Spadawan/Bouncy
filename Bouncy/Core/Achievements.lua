@@ -107,6 +107,12 @@ local function PetLevel(goal, id, title, description, icon, points)
         function(_, prog) return (prog and prog.level) or 1, goal end)
 end
 
+
+local function CreatureStat(goal, field, id, title, description, icon, points, rewardTitle)
+    return ProgressAchievement(id, "Companion", title, description, icon, points, goal,
+        function(char) return (char.creatureStats and char.creatureStats[field]) or 0, goal end, rewardTitle)
+end
+
 local function Zone(goal, aliases, id, title, description, icon, points, zoneIDs)
     local achievement = ProgressAchievement(id, "Zones", title, description, icon, points, goal,
         function(char, _, selfAchievement) return ZoneCount(char, selfAchievement), goal end)
@@ -152,6 +158,15 @@ local ACHIEVEMENTS = {
     PetLevel(3, "snack_apprentice", "Snack Apprentice", "Raise your companion to level 3.", "Interface\\Icons\\INV_Misc_Food_59", 10),
     PetLevel(6, "evolution_enthusiast", "Evolution Enthusiast", "Raise your companion to level 6.", "Interface\\Icons\\Ability_Hunter_BeastCall", 15),
     PetLevel(12, "beast_bond", "Beast Bond", "Raise your companion to level 12.", "Interface\\Icons\\Ability_Hunter_BeastWithin", 25),
+    CreatureStat(10, "feeds", "treat_time", "Treat Time", "Feed your companion 10 times.", "Interface\\Icons\\INV_Misc_Food_59", 5),
+    CreatureStat(50, "feeds", "bottomless_bowl", "Bottomless Bowl", "Feed your companion 50 times.", "Interface\\Icons\\INV_Misc_Food_15", 10),
+    CreatureStat(10, "consecutiveFeeds", "snack_streak", "Snack Streak", "Feed your companion 10 times in a row without evolving.", "Interface\\Icons\\INV_Misc_Food_60", 15),
+    CreatureStat(25, "consecutiveFeeds", "gourmet_training", "Gourmet Training", "Feed your companion 25 times in a row without evolving.", "Interface\\Icons\\INV_Misc_Food_64", 25,
+        { id="title_gourmet_trainer", title="Gourmet Trainer", color="0070DD", level=999 }),
+    CreatureStat(3, "evolutions", "growing_up_fast", "Growing Up Fast", "Evolve your companion 3 times.", "Interface\\Icons\\Achievement_Character_Human_Male", 15),
+    CreatureStat(6, "evolutions", "evolution_architect", "Evolution Architect", "Evolve your companion 6 times.", "Interface\\Icons\\Ability_Hunter_BeastMastery", 30,
+        { id="title_evolution_architect", title="Evolution Architect", color="A335EE", level=999 }),
+    CreatureStat(1, "typeSelections", "chosen_friend", "Chosen Friend", "Choose your first companion type.", "Interface\\Icons\\Ability_Hunter_BeastCall", 5),
 
     ProgressAchievement("world_sampler", "Exploration", "World Sampler", "Jump in 10 different zones.", "Interface\\Icons\\Achievement_Zone_EasternKingdoms_01", 10, 10,
         function(char) return CountZones(char), 10 end),

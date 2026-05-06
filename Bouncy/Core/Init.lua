@@ -114,6 +114,7 @@ SlashCmdList["BOUNCY"] = function(msg)
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
+            B.DB:RecordCreatureEvolution()
             if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
             if B.Overlay then B.Overlay:Refresh() end
             if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
@@ -127,6 +128,8 @@ SlashCmdList["BOUNCY"] = function(msg)
         for _, t in ipairs(B.CREATURE_TYPES or {}) do
             if t:lower() == wanted then
                 B.DB:SetCreatureType(t)
+                B.DB:RecordCreatureTypeSelection()
+                if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) end
                 if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
                 print(string.format("|cff%sBouncy|r Creature type set to %s.", B.COLOR.TITLE, t))
                 return

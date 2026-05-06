@@ -248,7 +248,9 @@ function Overlay:Init()
 
     -- Title
     local titleText = MakeFont(f, 8, "OUTLINE")
-    titleText:SetPoint("TOP", f, "TOP", 0, -4)
+    titleText:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -4)
+    titleText:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -4)
+    titleText:SetJustifyH("CENTER")
     titleText:SetTextColor(0.63, 0.89, 1.0)
     titleText:SetText("BOUNCY")
 

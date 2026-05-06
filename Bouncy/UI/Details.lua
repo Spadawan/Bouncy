@@ -417,6 +417,7 @@ function Details:_BuildStatsPanel(p)
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
+            B.DB:RecordCreatureEvolution()
             PlayCreatureEvolveAnim(p)
             PlayCreatureLevelupShine(p)
             SpawnCreatureParticles(p, true)
@@ -427,6 +428,7 @@ function Details:_BuildStatsPanel(p)
             if (prog.xp or 0) >= feedAmount then
                 prog.xp = prog.xp - feedAmount
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
+                B.DB:RecordCreatureFeed()
                 local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
                 PlayCreatureFeedAnim(p)
                 if autoLevel then PlayCreatureLevelupShine(p) end
@@ -451,6 +453,8 @@ function Details:_BuildStatsPanel(p)
         local btn = MakeSmallButton(creatureType, 72, function()
             if creatureType ~= "Astral" and creatureType ~= "Fire" and creatureType ~= "Water" then return end
             B.DB:SetCreatureType(creatureType)
+            B.DB:RecordCreatureTypeSelection()
+            if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) end
             Details:Refresh()
         end)
         btn:SetPoint("BOTTOMLEFT", p.typeHint, "TOPLEFT", bx, 6)

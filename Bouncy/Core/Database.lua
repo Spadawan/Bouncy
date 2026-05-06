@@ -97,6 +97,7 @@ function DB:EnsureChar(key)
             totalJumps = 0,
             bestStreak = 0,
             achievements = {}, -- [achievementID] = { earnedAt = timestamp }
+            creatureStats = { feeds = 0, consecutiveFeeds = 0, evolutions = 0, typeSelections = 0 },
             specialJumps = { raid = 0, instance = 0, night = 0, home = 0, mounted = 0 },
             byZoneID   = {},   -- [uiMapID/zoneID] = jumpCount
             bySubZone  = {},   -- [subZoneName] = jumpCount
@@ -108,6 +109,10 @@ function DB:EnsureChar(key)
     local char = Bouncy_DB.characters[key]
     if type(char.bestStreak) ~= "number" then char.bestStreak = 0 end
     if type(char.achievements) ~= "table" then char.achievements = {} end
+    if type(char.creatureStats) ~= "table" then char.creatureStats = {} end
+    for _, field in ipairs({ "feeds", "consecutiveFeeds", "evolutions", "typeSelections" }) do
+        if type(char.creatureStats[field]) ~= "number" then char.creatureStats[field] = 0 end
+    end
     if type(char.specialJumps) ~= "table" then char.specialJumps = {} end
     if type(char.byZoneID) ~= "table" then char.byZoneID = {} end
     if type(char.bySubZone) ~= "table" then char.bySubZone = {} end
@@ -244,6 +249,27 @@ function DB:SetCreatureType(creatureType)
     local prog = self:GetProgression()
     prog.creatureType = creatureType
     return prog
+end
+
+
+function DB:RecordCreatureFeed()
+    local char = self:EnsureChar()
+    char.creatureStats.feeds = (char.creatureStats.feeds or 0) + 1
+    char.creatureStats.consecutiveFeeds = (char.creatureStats.consecutiveFeeds or 0) + 1
+    return char.creatureStats
+end
+
+function DB:RecordCreatureEvolution()
+    local char = self:EnsureChar()
+    char.creatureStats.evolutions = (char.creatureStats.evolutions or 0) + 1
+    char.creatureStats.consecutiveFeeds = 0
+    return char.creatureStats
+end
+
+function DB:RecordCreatureTypeSelection()
+    local char = self:EnsureChar()
+    char.creatureStats.typeSelections = (char.creatureStats.typeSelections or 0) + 1
+    return char.creatureStats
 end
 
 -------------------------------------------------------------------------------
