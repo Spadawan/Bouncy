@@ -455,8 +455,14 @@ function Overlay:OnAchievementUnlock(achievement)
     if achievement.rewardTitle then
         rewardText = string.format("  |cff%sTitle: %s|r", achievement.rewardTitle.color or "A335EE", achievement.rewardTitle.title or "Title")
     end
-    print(string.format("|cffA0E4FFBouncy|r  Achievement earned: |cffffd700[%s]|r |cff%s+%d points|r%s",
-        achievement.title or "Achievement", B.COLOR.DIM, achievement.points or 0, rewardText))
+    local link = (B.Achievements and B.Achievements.GetChatLink and B.Achievements:GetChatLink(achievement)) or string.format("|cffffd700[%s]|r", achievement.title or "Achievement")
+    local message = string.format("|cffA0E4FFBouncy|r  Achievement earned: %s |cff%s+%d points|r%s",
+        link, B.COLOR.DIM, achievement.points or 0, rewardText)
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage(message)
+    else
+        print(message)
+    end
     if not B.DB:GetSettings().ultraMinimal then
         self.frame:SetBackdropBorderColor(1.0, 0.82, 0.20, 1.0)
         C_Timer.After(0.9, function()

@@ -23,6 +23,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1, ...)
     elseif event == "PLAYER_LOGIN" then
         -- Ensure char entry exists before any UI reads it
         B.DB:EnsureChar()
+        if B.Achievements then B.Achievements:InitChatLinks() end
 
         B.Tracker:Init()
         if B.Community then B.Community:Init() end

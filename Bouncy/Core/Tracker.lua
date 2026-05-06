@@ -82,11 +82,18 @@ local function BuildJumpContext(zone)
         local inInstance, instType = IsInInstance()
         if inInstance then instanceType = instType end
     end
+    local mapID = nil
+    if C_Map and C_Map.GetBestMapForUnit then
+        mapID = C_Map.GetBestMapForUnit("player")
+    elseif GetCurrentMapAreaID then
+        mapID = GetCurrentMapAreaID()
+    end
     local serverTime = GetServerTime and GetServerTime() or time()
     local hour = tonumber(date("%H", serverTime)) or 12
     return {
         zone = zone,
         subZone = subZone,
+        mapID = mapID,
         instanceType = instanceType,
         isMounted = (IsMounted and IsMounted()) and true or false,
         isNight = (hour >= 22 or hour < 6),

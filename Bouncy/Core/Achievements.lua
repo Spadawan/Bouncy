@@ -15,18 +15,37 @@ local function CountZones(char)
     return n
 end
 
-local function ZoneCount(char, aliases)
-    local total = 0
+local function NormalizeZoneName(zone)
+    return tostring(zone or ""):lower()
+        :gsub("[’`´]", "'")
+        :gsub("[%-%s]+", " ")
+        :gsub("^%s+", "")
+        :gsub("%s+$", "")
+end
+
+local function ZoneCount(char, achievement)
+    local idTotal = 0
+    local zoneIDs = achievement.zoneIDs or {}
+    for _, zoneID in ipairs(zoneIDs) do
+        idTotal = idTotal + ((char.byZoneID and char.byZoneID[tostring(zoneID)]) or 0)
+    end
+
+    local aliasTotal = 0
+    local normalizedAliases = {}
+    for _, alias in ipairs(achievement.aliases or {}) do
+        normalizedAliases[NormalizeZoneName(alias)] = true
+    end
     for zone, count in pairs(char.byZone or {}) do
-        local z = tostring(zone or ""):lower()
-        for _, alias in ipairs(aliases or {}) do
-            if z == tostring(alias):lower() then
-                total = total + (count or 0)
-                break
-            end
+        if normalizedAliases[NormalizeZoneName(zone)] then
+            aliasTotal = math.max(aliasTotal, count or 0)
         end
     end
-    return total
+    for subZone, count in pairs(char.bySubZone or {}) do
+        if normalizedAliases[NormalizeZoneName(subZone)] then
+            aliasTotal = math.max(aliasTotal, count or 0)
+        end
+    end
+    return math.max(idTotal, aliasTotal)
 end
 
 local function HighestZoneCount(char)
@@ -88,9 +107,12 @@ local function PetLevel(goal, id, title, description, icon, points)
         function(_, prog) return (prog and prog.level) or 1, goal end)
 end
 
-local function Zone(goal, aliases, id, title, description, icon, points)
-    return ProgressAchievement(id, "Zones", title, description, icon, points, goal,
-        function(char) return ZoneCount(char, aliases), goal end)
+local function Zone(goal, aliases, id, title, description, icon, points, zoneIDs)
+    local achievement = ProgressAchievement(id, "Zones", title, description, icon, points, goal,
+        function(char, _, selfAchievement) return ZoneCount(char, selfAchievement), goal end)
+    achievement.aliases = aliases or {}
+    achievement.zoneIDs = zoneIDs or {}
+    return achievement
 end
 
 local function Special(goal, field, id, title, description, icon, points, rewardTitle)
@@ -153,7 +175,7 @@ local ACHIEVEMENTS = {
     Zone(100, { "Darnassus" }, "darnassus_branches", "Darnassus Branch Bouncer", "Perform 100 jumps in Darnassus.", "Interface\\Icons\\Spell_Arcane_TeleportDarnassus", 10),
     Zone(100, { "Undercity", "Fossoyeuse" }, "undercity_knee_check", "Undercity Knee Check", "Perform 100 jumps in Undercity.", "Interface\\Icons\\Spell_Arcane_TeleportUnderCity", 10),
     Zone(100, { "The Exodar", "Exodar", "L'Exodar" }, "exodar_crystal_hops", "Exodar Crystal Hops", "Perform 100 jumps in the Exodar.", "Interface\\Icons\\Spell_Arcane_TeleportExodar", 10),
-    Zone(250, { "Silvermoon City", "Lune-d'argent", "Lune d'argent" }, "silvermoon_midnight_warmup", "Silvermoon Midnight Warmup", "Perform 250 jumps in Silvermoon City.", "Interface\\Icons\\Spell_Arcane_TeleportSilvermoon", 20),
+    Zone(250, { "Silvermoon City", "Silvermoon", "Lune-d'argent", "Lune d'argent", "Lune d’argent", "Lune-argent", "Cité de Lune-d'argent", "Cite de Lune-d'argent", "Ville de Lune-d'argent" }, "silvermoon_midnight_warmup", "Silvermoon Midnight Warmup", "Perform 250 jumps in Silvermoon City.", "Interface\\Icons\\Spell_Arcane_TeleportSilvermoon", 20, { 15969 }),
     Zone(250, { "Dalaran" }, "dalaran_lag_tester", "Dalaran Lag Tester", "Perform 250 jumps in Dalaran.", "Interface\\Icons\\Spell_Arcane_TeleportDalaran", 15),
     Zone(100, { "Valdrakken" }, "valdrakken_drake_dodger", "Valdrakken Drake Dodger", "Perform 100 jumps in Valdrakken.", "Interface\\Icons\\Ability_Mount_Drake_Bronze", 15),
     Zone(100, { "Dornogal" }, "dornogal_foundation_test", "Dornogal Foundation Test", "Perform 100 jumps in Dornogal.", "Interface\\Icons\\INV_Stone_15", 15),
@@ -193,7 +215,7 @@ function Achievements:EnsureCharState(char)
 end
 
 function Achievements:GetProgress(achievement, char, prog)
-    local current, goal = achievement.progress(char or {}, prog or {})
+    local current, goal = achievement.progress(char or {}, prog or {}, achievement)
     goal = goal or achievement.goal or 1
     current = current or 0
     return current, goal, current >= goal
@@ -234,6 +256,85 @@ function Achievements:Evaluate(char, prog)
     end
     if #newlyUnlocked > 0 then return newlyUnlocked end
     return nil
+end
+
+
+local ACHIEVEMENT_LINK_TYPE = "bouncyach"
+
+function Achievements:GetChatLink(achievement)
+    if not achievement then return "|cffffd700[Achievement]|r" end
+    return string.format("|cffffd700|H%s:%s|h[%s]|h|r", ACHIEVEMENT_LINK_TYPE, achievement.id or "", achievement.title or "Achievement")
+end
+
+function Achievements:BuildTooltip(tooltip, achievement, char, prog)
+    if not tooltip or not achievement then return end
+    char = char or (B.DB and B.DB:GetChar())
+    prog = prog or (B.DB and B.DB:GetProgression())
+    local current, goal = self:GetProgress(achievement, char, prog)
+    local isUnlocked = self:IsUnlocked(char, achievement.id)
+    tooltip:SetText(achievement.title or "Achievement", 1, 0.82, 0)
+    tooltip:AddLine(achievement.description or "", 1, 1, 1, true)
+    tooltip:AddLine(string.format("Progress: %s/%s", B.FormatNum(current), B.FormatNum(goal)), 0.7, 0.9, 1.0)
+    tooltip:AddLine(string.format("Achievement Points: %d", achievement.points or 0), 1.0, 0.82, 0.0)
+    if achievement.rewardTitle then
+        tooltip:AddLine(string.format("Reward Title: %s", achievement.rewardTitle.title or "Title"), 1.0, 0.82, 0.0)
+    end
+    if isUnlocked and char and char.achievements and char.achievements[achievement.id] and char.achievements[achievement.id].earnedAt then
+        tooltip:AddLine(date("Earned %Y-%m-%d", char.achievements[achievement.id].earnedAt), 0.5, 1.0, 0.5)
+    elseif isUnlocked then
+        tooltip:AddLine("Earned", 0.5, 1.0, 0.5)
+    else
+        tooltip:AddLine("In progress", 0.8, 0.8, 0.8)
+    end
+end
+
+function Achievements:ShowLinkTooltip(owner, link)
+    local id = tostring(link or ""):match("^" .. ACHIEVEMENT_LINK_TYPE .. ":([^:|]+)")
+        or tostring(link or ""):match(ACHIEVEMENT_LINK_TYPE .. ":([^:|]+)")
+    local achievement = id and self:GetByID(id)
+    if not achievement then return false end
+    GameTooltip:SetOwner(owner or UIParent, owner and "ANCHOR_CURSOR" or "ANCHOR_NONE")
+    self:BuildTooltip(GameTooltip, achievement)
+    GameTooltip:Show()
+    return true
+end
+
+function Achievements:OpenLinkTooltip(link)
+    local id = tostring(link or ""):match("^" .. ACHIEVEMENT_LINK_TYPE .. ":([^:|]+)")
+        or tostring(link or ""):match(ACHIEVEMENT_LINK_TYPE .. ":([^:|]+)")
+    local achievement = id and self:GetByID(id)
+    if not achievement then return false end
+    local tooltip = ItemRefTooltip or GameTooltip
+    if tooltip.SetOwner then tooltip:SetOwner(UIParent, "ANCHOR_PRESERVE") end
+    self:BuildTooltip(tooltip, achievement)
+    tooltip:Show()
+    return true
+end
+
+function Achievements:InitChatLinks()
+    if self._chatLinksInit then return end
+    self._chatLinksInit = true
+
+    if hooksecurefunc and ChatFrame_OnHyperlinkEnter then
+        hooksecurefunc("ChatFrame_OnHyperlinkEnter", function(frame, linkData, link)
+            local candidate = linkData or link
+            if candidate and tostring(candidate):find(ACHIEVEMENT_LINK_TYPE .. ":", 1, true) then
+                Achievements:ShowLinkTooltip(frame, candidate)
+            end
+        end)
+    end
+    if hooksecurefunc and ChatFrame_OnHyperlinkLeave then
+        hooksecurefunc("ChatFrame_OnHyperlinkLeave", function()
+            GameTooltip:Hide()
+        end)
+    end
+    if hooksecurefunc and SetItemRef then
+        hooksecurefunc("SetItemRef", function(link)
+            if link and tostring(link):find(ACHIEVEMENT_LINK_TYPE .. ":", 1, true) then
+                Achievements:OpenLinkTooltip(link)
+            end
+        end)
+    end
 end
 
 function Achievements:GetSummary(char, prog)

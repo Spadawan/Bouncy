@@ -98,6 +98,8 @@ function DB:EnsureChar(key)
             bestStreak = 0,
             achievements = {}, -- [achievementID] = { earnedAt = timestamp }
             specialJumps = { raid = 0, instance = 0, night = 0, home = 0, mounted = 0 },
+            byZoneID   = {},   -- [uiMapID/zoneID] = jumpCount
+            bySubZone  = {},   -- [subZoneName] = jumpCount
             byZone     = {},   -- [zoneName] = jumpCount
             daily      = { dayStart = 0, jumps = 0 },
             weekly     = { weekStart = 0, jumps = 0 },
@@ -107,6 +109,8 @@ function DB:EnsureChar(key)
     if type(char.bestStreak) ~= "number" then char.bestStreak = 0 end
     if type(char.achievements) ~= "table" then char.achievements = {} end
     if type(char.specialJumps) ~= "table" then char.specialJumps = {} end
+    if type(char.byZoneID) ~= "table" then char.byZoneID = {} end
+    if type(char.bySubZone) ~= "table" then char.bySubZone = {} end
     for _, field in ipairs({ "raid", "instance", "night", "home", "mounted" }) do
         if type(char.specialJumps[field]) ~= "number" then char.specialJumps[field] = 0 end
     end
@@ -124,9 +128,18 @@ function DB:RecordJump(zoneName, context)
     -- By zone
     zoneName = zoneName or "Unknown"
     char.byZone[zoneName] = (char.byZone[zoneName] or 0) + 1
+    context = context or {}
+    if context.mapID then
+        local mapKey = tostring(context.mapID)
+        char.byZoneID = char.byZoneID or {}
+        char.byZoneID[mapKey] = (char.byZoneID[mapKey] or 0) + 1
+    end
+    if context.subZone and context.subZone ~= "" then
+        char.bySubZone = char.bySubZone or {}
+        char.bySubZone[context.subZone] = (char.bySubZone[context.subZone] or 0) + 1
+    end
 
     -- Special achievement counters
-    context = context or {}
     char.specialJumps = char.specialJumps or { raid = 0, instance = 0, night = 0, home = 0, mounted = 0 }
     if context.instanceType == "raid" then
         char.specialJumps.raid = (char.specialJumps.raid or 0) + 1
