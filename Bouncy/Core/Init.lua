@@ -118,7 +118,7 @@ SlashCmdList["BOUNCY"] = function(msg)
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
-            if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
+            if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.activeCreatureIndex) end
             B.DB:RecordCreatureEvolution()
             if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
             if B.Overlay then B.Overlay:Refresh() end

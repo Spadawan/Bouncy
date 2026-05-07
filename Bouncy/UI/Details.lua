@@ -512,7 +512,7 @@ function Details:_BuildStatsPanel(p)
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
-            if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
+            if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.activeCreatureIndex) end
             RecordCreatureEvolution()
             PlayCreatureEvolveAnim(p)
             PlayCreatureLevelupShine(p)
@@ -526,7 +526,7 @@ function Details:_BuildStatsPanel(p)
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
                 RecordCreatureFeed()
                 local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
-                if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
+                if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.activeCreatureIndex) end
                 PlayCreatureFeedAnim(p)
                 if autoLevel then PlayCreatureLevelupShine(p) end
                 SpawnCreatureParticles(p, false)
@@ -610,7 +610,7 @@ function Details:_RefreshStats(p)
     activeStatsCreature = tonumber(prog.activeCreatureIndex) or activeIndex
 
     if B.Leveling and B.Leveling.AdvanceCreatureNonEvolutionLevels and B.Leveling:AdvanceCreatureNonEvolutionLevels(prog) then
-        if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
+        if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.activeCreatureIndex) end
         if B.Achievements then B.Achievements:Evaluate(char, prog) end
     end
     local creatureLvl = prog.level or 1
@@ -635,10 +635,11 @@ function Details:_RefreshStats(p)
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
         local texturePrefix = (B.CREATURE_LEVELS and B.CREATURE_LEVELS[prog.creatureType] and prog.creatureType) or "Astral"
         p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", texturePrefix, stage.art))
-        local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1, prog)
+        local activeBonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1, prog)
+        local totalBonusPct = (B.Leveling.GetTotalCreatureBonusPercent and B.Leveling:GetTotalCreatureBonusPercent(prog)) or activeBonusPct
         local creatureLabel = B.Leveling:GetCreatureLabel(prog.creatureType, creatureLvl)
-        p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Bonus XP|r",
-            B.COLOR.LEVEL_UP, creatureLvl, creatureLabel, bonusPct))
+        p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Active / +%d%% Total XP|r",
+            B.COLOR.LEVEL_UP, creatureLvl, creatureLabel, activeBonusPct, totalBonusPct))
         p.evolveBtn:Show()
         p.xpBar:SetValue(frac)
         p.xpLabel:SetText(string.format("|cff%s%s|r / |cff%s%s|r creature XP",

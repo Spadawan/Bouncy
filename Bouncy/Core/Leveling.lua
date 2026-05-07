@@ -108,6 +108,22 @@ function Leveling:GetCreatureBonusPercent(level, prog)
     return perLevel + evoBonus
 end
 
+function Leveling:GetTotalCreatureBonusPercent(prog)
+    if type(prog) ~= "table" then return 0 end
+    local total = 0
+    if type(prog.creatures) == "table" then
+        for _, creature in pairs(prog.creatures) do
+            if type(creature) == "table" and creature.unlocked and creature.type then
+                total = total + self:GetCreatureBonusPercent(creature.level or 1, { creatureType = creature.type })
+            end
+        end
+    end
+    if total == 0 and prog.creatureType then
+        total = self:GetCreatureBonusPercent(prog.level or 1, prog)
+    end
+    return total
+end
+
 
 -------------------------------------------------------------------------------
 -- Level title unlocks (persistent per character)
