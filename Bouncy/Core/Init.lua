@@ -110,10 +110,15 @@ SlashCmdList["BOUNCY"] = function(msg)
 
     elseif cmd == "evolve" then
         local prog = B.DB:GetProgression()
+        if not prog.creatureType then
+            print(string.format("|cff%sBouncy|r Choose a creature type first.", B.COLOR.TITLE))
+            return
+        end
         if B.Leveling:CanEvolve(prog) then
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
+            if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.activeCreatureIndex) end
             B.DB:RecordCreatureEvolution()
             if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
             if B.Overlay then B.Overlay:Refresh() end
@@ -127,7 +132,10 @@ SlashCmdList["BOUNCY"] = function(msg)
         local wanted = rest and rest:lower() or ""
         for _, t in ipairs(B.CREATURE_TYPES or {}) do
             if t:lower() == wanted then
-                B.DB:SetCreatureType(t)
+                if not B.DB:SetCreatureType(t) then
+                    print(string.format("|cff%sBouncy|r %s is not unlocked yet.", B.COLOR.TITLE, t))
+                    return
+                end
                 B.DB:RecordCreatureTypeSelection()
                 if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) end
                 if B.Details and B.Details.frame and B.Details.frame:IsShown() then B.Details:Refresh() end
@@ -135,7 +143,7 @@ SlashCmdList["BOUNCY"] = function(msg)
                 return
             end
         end
-        print(string.format("|cff%sUsage: /bouncy type astral|fire|water|lunar|r", B.COLOR.DIM))
+        print(string.format("|cff%sUsage: /bouncy type astral|fire|water|lunar|electric", B.COLOR.DIM))
 
     elseif cmd == "version" then
         print(string.format("|cff%sBouncy|r v%s", B.COLOR.TITLE, B.VERSION))

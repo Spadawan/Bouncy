@@ -18,6 +18,14 @@ B.CREATURE_TYPES = {
     "Electric",
 }
 
+B.CREATURE_UNLOCKS = {
+    [1] = { unlockLevel = nil, label = "Creature 1", tooltip = "Your current creature. Unlocked from the start." },
+    [2] = { unlockLevel = 8, label = "Creature 2", tooltip = "Unlocks when Creature 1 reaches level 8." },
+    [3] = { unlockLevel = 16, label = "Creature 3", tooltip = "Unlocks when any creature reaches level 16." },
+    [4] = { unlockLevel = 26, label = "Creature 4", tooltip = "Unlocks when any creature reaches level 26." },
+    [5] = { unlockLevel = 40, label = "Creature 5", tooltip = "Unlocks when any creature reaches level 40." },
+}
+
 local function BuildCreatureLevelSet(prefix)
     local out = {}
     for i = 1, 6 do
@@ -132,6 +140,7 @@ B.CREATURE_LEVELS = {
     Astral = BuildCreatureLevelSet("Astral"),
     Fire = BuildCreatureLevelSet("Fire"),
     Water = BuildCreatureLevelSet("Water"),
+    Lunar = BuildCreatureLevelSet("Lunar"),
     Electric = BuildCreatureLevelSet("Electric"),
 }
 
