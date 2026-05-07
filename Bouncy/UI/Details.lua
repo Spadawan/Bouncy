@@ -456,38 +456,39 @@ function Details:_BuildStatsPanel(p)
         return btn
     end
 
-    local function MakeCreatureTab(creatureType, idx)
-        local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[creatureType] or {}
+    local function MakeCreatureTab(creatureIndex)
+        local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[creatureIndex] or {}
         local btn = CreateFrame("Button", nil, p, "BackdropTemplate")
-        btn:SetSize(98, 28)
+        btn:SetSize(98, 30)
         btn:SetBackdrop({ bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
                           edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
                           edgeSize = 9, insets = { left=2,right=2,top=2,bottom=2 } })
-        btn._creatureType = creatureType
+        btn._creatureIndex = creatureIndex
         btn._unlockTip = rule.tooltip or "Unlock this creature by leveling your pets."
 
         local fs = btn:CreateFontString(nil, "OVERLAY")
         fs:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
         fs:SetAllPoints()
         fs:SetJustifyH("CENTER")
-        fs:SetText(rule.label or creatureType)
+        fs:SetText(rule.label or string.format("Creature %d", creatureIndex))
         btn.label = fs
 
         btn:SetScript("OnEnter", function(self)
             if not GameTooltip then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText(rule.label or creatureType, 1, 1, 1)
-            GameTooltip:AddLine(creatureType, 0.65, 0.85, 1)
+            GameTooltip:SetText(rule.label or string.format("Creature %d", creatureIndex), 1, 1, 1)
+            local prog = B.DB:GetProgression()
+            local creature = prog.creatures and prog.creatures[tostring(creatureIndex)]
+            if creature and creature.type then
+                GameTooltip:AddLine(creature.type, 0.65, 0.85, 1)
+            end
             GameTooltip:AddLine(self._unlockTip or "", 1, 0.85, 0.35, true)
             GameTooltip:Show()
         end)
         btn:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
         btn:SetScript("OnClick", function()
-            local prog = B.DB:GetProgression()
-            local creature = prog.creatures and prog.creatures[creatureType]
-            if creature and creature.unlocked and B.DB:SetCreatureType(creatureType) then
-                activeStatsCreature = creatureType
-                RecordCreatureTypeSelection()
+            if B.DB.SetActiveCreature and B.DB:SetActiveCreature(creatureIndex) then
+                activeStatsCreature = creatureIndex
                 Details:Refresh()
             else
                 PlayCreaturePopup(p, "Locked", {1.0, 0.45, 0.2})
@@ -499,10 +500,10 @@ function Details:_BuildStatsPanel(p)
     p.creatureTabs = {}
     local tabSpacing = 104
     local tabStartX = 16
-    for i, creatureType in ipairs(B.CREATURE_TYPES or {}) do
-        local btn = MakeCreatureTab(creatureType, i)
-        btn:SetPoint("TOPLEFT", p, "TOPLEFT", tabStartX + ((i - 1) * tabSpacing), -184)
-        p.creatureTabs[creatureType] = btn
+    for i = 1, #(B.CREATURE_UNLOCKS or B.CREATURE_TYPES or {}) do
+        local btn = MakeCreatureTab(i)
+        btn:SetPoint("TOPLEFT", p, "TOPLEFT", tabStartX + ((i - 1) * tabSpacing), -248)
+        p.creatureTabs[i] = btn
     end
 
     p.evolveBtn = MakeSmallButton("Feed", 90, function()
@@ -541,14 +542,13 @@ function Details:_BuildStatsPanel(p)
     p.evolveBtn:SetPoint("TOP", artwork, "BOTTOM", 0, -8)
 
     p.typeHint = MakeFont(p, 10, "")
-    p.typeHint:SetPoint("BOTTOM", p.statsSep, "TOP", 0, 34)
+    p.typeHint:SetPoint("TOP", p, "TOP", 0, -212)
 
     p.typeButtons = {}
     local bx = 0
     for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
         local btn = MakeSmallButton(creatureType, 72, function()
-            if creatureType ~= "Astral" and creatureType ~= "Fire" and creatureType ~= "Water" and creatureType ~= "Electric" then return end
-            B.DB:SetCreatureType(creatureType)
+            if not B.DB:SetCreatureType(creatureType) then return end
             RecordCreatureTypeSelection()
             if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), B.DB:GetProgression()) end
             Details:Refresh()
@@ -597,13 +597,17 @@ function Details:_RefreshStats(p)
     local char = B.DB:GetChar()
     if not char then return end
     local prog = B.DB:GetProgression()
-    if not activeStatsCreature or not (prog.creatures and prog.creatures[activeStatsCreature] and prog.creatures[activeStatsCreature].unlocked) then
-        activeStatsCreature = prog.creatureType or ((B.CREATURE_TYPES and B.CREATURE_TYPES[1]) or "Astral")
+    local activeIndex = tonumber(activeStatsCreature) or tonumber(prog.activeCreatureIndex) or 1
+    local activeSlot = prog.creatures and prog.creatures[tostring(activeIndex)]
+    if not activeSlot or not activeSlot.unlocked then
+        activeIndex = tonumber(prog.activeCreatureIndex) or 1
+        activeSlot = prog.creatures and prog.creatures[tostring(activeIndex)]
     end
-    if activeStatsCreature ~= prog.creatureType then
-        B.DB:SetCreatureType(activeStatsCreature)
+    if activeIndex ~= tonumber(prog.activeCreatureIndex) and B.DB.SetActiveCreature then
+        B.DB:SetActiveCreature(activeIndex)
         prog = B.DB:GetProgression()
     end
+    activeStatsCreature = tonumber(prog.activeCreatureIndex) or activeIndex
 
     if B.Leveling and B.Leveling.AdvanceCreatureNonEvolutionLevels and B.Leveling:AdvanceCreatureNonEvolutionLevels(prog) then
         if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
@@ -642,14 +646,22 @@ function Details:_RefreshStats(p)
         p.xpBar:Show()
         p.xpLabel:Show()
     end
-    for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
-        local btn = p.creatureTabs and p.creatureTabs[creatureType]
-        local creature = prog.creatures and prog.creatures[creatureType]
+    for i = 1, #(B.CREATURE_UNLOCKS or B.CREATURE_TYPES or {}) do
+        local btn = p.creatureTabs and p.creatureTabs[i]
+        local creature = prog.creatures and prog.creatures[tostring(i)]
         if btn and creature then
-            local isActive = (creatureType == prog.creatureType)
+            local isActive = (i == tonumber(prog.activeCreatureIndex))
             local isUnlocked = creature.unlocked
-            local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[creatureType]
-            btn.label:SetText(string.format("%s\nLv.%d%s", rule and rule.label or creatureType, creature.level or 1, isUnlocked and "" or " |cff888888(locked)|r"))
+            local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[i]
+            local stateText
+            if not isUnlocked then
+                stateText = "|cff888888Locked|r"
+            elseif creature.type then
+                stateText = string.format("%s Lv.%d", creature.type, creature.level or 1)
+            else
+                stateText = "|cffffcc00Choose|r"
+            end
+            btn.label:SetText(string.format("%s\n%s", rule and rule.label or string.format("Creature %d", i), stateText))
             btn:SetEnabled(true)
             if isActive then
                 btn:SetBackdropColor(0.12, 0.20, 0.42, 0.98)
@@ -746,26 +758,16 @@ function Details:_RefreshStats(p)
     r[4]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jpm))
     r[5]:SetText(string.format("|cff%s%.2f|r", B.COLOR.JUMP, jph))
 
-    local playerLevel = (playerLevelData and playerLevelData.level) or 1
-    local shouldChooseType = (playerLevel >= 2 and not prog.creatureType)
-    p.typeHint:SetShown((prog.creatureType ~= nil) or shouldChooseType)
+    local activeSlot = prog.creatures and prog.creatures[tostring(prog.activeCreatureIndex or 1)]
+    local shouldChooseType = activeSlot and activeSlot.unlocked and not prog.creatureType
+    p.typeHint:SetShown(shouldChooseType)
     if shouldChooseType then
-        p.typeHint:SetText("|cffffcc00Select a creature type (unlocked at player level 2).|r")
-    elseif creatureLocked then
-        p.typeHint:SetText("|cffff8800Reach player level 2 to choose your creature type.|r")
-    elseif prog.creatureType then
-        p.typeHint:SetText("")
+        p.typeHint:SetText("|cffffcc00Choose this creature's type.|r")
     end
     for _, btn in ipairs(p.typeButtons or {}) do
         btn:SetShown(shouldChooseType)
-        local label = btn:GetText()
-        local enabled = (label == "Astral" or label == "Fire" or label == "Water" or label == "Electric")
-        btn:SetEnabled(enabled)
-        if enabled then
-            btn:GetFontString():SetTextColor(1, 1, 1)
-        else
-            btn:GetFontString():SetTextColor(0.45, 0.45, 0.45)
-        end
+        btn:SetEnabled(true)
+        btn:GetFontString():SetTextColor(1, 1, 1)
     end
     if prog.creatureType then
         p.evolveBtn:SetText(B.Leveling:CanEvolve(prog) and "Evolve" or "Feed")

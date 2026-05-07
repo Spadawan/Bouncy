@@ -219,17 +219,29 @@ end
 -------------------------------------------------------------------------------
 -- Progression (XP / level)
 -------------------------------------------------------------------------------
-local function CreatureUnlockRequirement(creatureType)
-    local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[creatureType]
+local function CreatureUnlockRequirement(creatureIndex)
+    local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[creatureIndex]
     return rule and rule.unlockLevel or nil
 end
+
+local function CreatureSlotKey(creatureIndex)
+    return tostring(tonumber(creatureIndex) or 1)
+end
+
+local function IsCreatureType(value)
+    for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
+        if creatureType == value then return true end
+    end
+    return false
+end
+
 
 function DB:GetMaxCreatureLevel(prog)
     prog = prog or self:GetProgression()
     local maxLevel = 1
-    for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
-        local c = prog.creatures and prog.creatures[creatureType]
-        if c and (c.level or 1) > maxLevel then
+    for i = 1, #(B.CREATURE_UNLOCKS or B.CREATURE_TYPES or {}) do
+        local c = prog.creatures and prog.creatures[CreatureSlotKey(i)]
+        if c and c.unlocked and (c.level or 1) > maxLevel then
             maxLevel = c.level or 1
         end
     end
@@ -239,39 +251,62 @@ end
 function DB:EnsureCreatureState(prog)
     if type(prog.creatures) ~= "table" then prog.creatures = {} end
 
-    local legacyType = prog.creatureType
-    if legacyType == "" then legacyType = nil end
-    if not legacyType then legacyType = (B.CREATURE_TYPES and B.CREATURE_TYPES[1]) or "Astral" end
+    local activeType = prog.creatureType
+    if activeType == "" or not IsCreatureType(activeType) then activeType = nil end
 
-    for idx, creatureType in ipairs(B.CREATURE_TYPES or {}) do
-        if type(prog.creatures[creatureType]) ~= "table" then
-            prog.creatures[creatureType] = { level = 1, creatureXP = 0, unlocked = (idx == 1) }
+    -- Migrate both the original single-creature save and the previous keyed-by-type
+    -- implementation into slot 1. Slot 1 is whatever creature the player already had.
+    if not prog.creatureSlotsMigrated then
+        local typedCreatures = prog.creatures
+        local migrated = nil
+        if activeType and type(typedCreatures[activeType]) == "table" then
+            migrated = typedCreatures[activeType]
+        else
+            for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
+                local candidate = typedCreatures[creatureType]
+                if type(candidate) == "table" and (candidate.unlocked or candidate.level or candidate.creatureXP) then
+                    activeType = creatureType
+                    migrated = candidate
+                    break
+                end
+            end
         end
-        local c = prog.creatures[creatureType]
+
+        prog.creatures = {}
+        local slot = {
+            type = activeType,
+            level = (migrated and migrated.level) or prog.level or 1,
+            creatureXP = (migrated and migrated.creatureXP) or prog.creatureXP or 0,
+            unlocked = true,
+        }
+        prog.creatures["1"] = slot
+        prog.activeCreatureIndex = 1
+        prog.creatureSlotsMigrated = true
+    end
+
+    local slotCount = #(B.CREATURE_UNLOCKS or {})
+    if slotCount == 0 then slotCount = #(B.CREATURE_TYPES or {}) end
+    if slotCount == 0 then slotCount = 5 end
+
+    for i = 1, slotCount do
+        local key = CreatureSlotKey(i)
+        if type(prog.creatures[key]) ~= "table" then
+            prog.creatures[key] = { level = 1, creatureXP = 0, unlocked = (i == 1), type = nil }
+        end
+        local c = prog.creatures[key]
+        if c.type == "" or not IsCreatureType(c.type) then c.type = nil end
         if type(c.level) ~= "number" then c.level = 1 end
         if type(c.creatureXP) ~= "number" then c.creatureXP = 0 end
-        if idx == 1 then c.unlocked = true end
+        if i == 1 then c.unlocked = true end
     end
 
-    -- Migrate the original single-creature save fields into the selected creature once.
-    if not prog.creaturesMigrated then
-        local c = prog.creatures[legacyType] or prog.creatures[(B.CREATURE_TYPES and B.CREATURE_TYPES[1]) or "Astral"]
-        if c then
-            c.level = math.max(c.level or 1, prog.level or 1)
-            c.creatureXP = math.max(c.creatureXP or 0, prog.creatureXP or 0)
-            c.unlocked = true
-        end
-        prog.creaturesMigrated = true
-    end
-
-    local firstType = (B.CREATURE_TYPES and B.CREATURE_TYPES[1]) or "Astral"
-    local first = prog.creatures[firstType]
+    local first = prog.creatures["1"]
     local firstLevel = first and (first.level or 1) or 1
     local maxLevel = self:GetMaxCreatureLevel(prog)
-    for idx, creatureType in ipairs(B.CREATURE_TYPES or {}) do
-        local c = prog.creatures[creatureType]
-        local req = CreatureUnlockRequirement(creatureType)
-        if idx == 2 then
+    for i = 1, slotCount do
+        local c = prog.creatures[CreatureSlotKey(i)]
+        local req = CreatureUnlockRequirement(i)
+        if i == 2 then
             c.unlocked = c.unlocked or (firstLevel >= (req or 999))
         elseif req then
             c.unlocked = c.unlocked or (maxLevel >= req)
@@ -280,11 +315,15 @@ function DB:EnsureCreatureState(prog)
         end
     end
 
-    if not prog.creatureType or not prog.creatures[prog.creatureType] or not prog.creatures[prog.creatureType].unlocked then
-        prog.creatureType = firstType
+    local activeIndex = tonumber(prog.activeCreatureIndex) or 1
+    local active = prog.creatures[CreatureSlotKey(activeIndex)]
+    if not active or not active.unlocked then
+        activeIndex = 1
+        active = prog.creatures["1"]
     end
+    prog.activeCreatureIndex = activeIndex
 
-    local active = prog.creatures[prog.creatureType]
+    prog.creatureType = active and active.type or nil
     prog.level = active and (active.level or 1) or 1
     prog.creatureXP = active and (active.creatureXP or 0) or 0
     return prog.creatures
@@ -293,7 +332,7 @@ end
 function DB:GetProgression()
     local key = self:CharKey()
     if not Bouncy_DB.progression[key] then
-        Bouncy_DB.progression[key] = { xp = 0, level = 1, creatureXP = 0, creatureType = nil, bonusXPFraction = 0, creatures = {} }
+        Bouncy_DB.progression[key] = { xp = 0, level = 1, creatureXP = 0, creatureType = nil, bonusXPFraction = 0, creatures = {}, activeCreatureIndex = 1 }
     end
     if type(Bouncy_DB.progression[key].bonusXPFraction) ~= "number" then
         Bouncy_DB.progression[key].bonusXPFraction = 0
@@ -311,17 +350,35 @@ function DB:AddXP(amount)
     return prog
 end
 
-function DB:GetCreatureProgression(creatureType)
+function DB:GetCreatureProgression(creatureIndex)
     local prog = self:GetProgression()
     self:EnsureCreatureState(prog)
-    return prog.creatures and prog.creatures[creatureType]
+    return prog.creatures and prog.creatures[CreatureSlotKey(creatureIndex)]
+end
+
+function DB:SetActiveCreature(creatureIndex)
+    local prog = self:GetProgression()
+    self:EnsureCreatureState(prog)
+    local idx = tonumber(creatureIndex) or 1
+    local creature = prog.creatures and prog.creatures[CreatureSlotKey(idx)]
+    if creature and creature.unlocked then
+        prog.activeCreatureIndex = idx
+        prog.creatureType = creature.type
+        prog.level = creature.level or 1
+        prog.creatureXP = creature.creatureXP or 0
+        return prog
+    end
+    return nil
 end
 
 function DB:SetCreatureType(creatureType)
+    if not IsCreatureType(creatureType) then return nil end
     local prog = self:GetProgression()
     self:EnsureCreatureState(prog)
-    local creature = prog.creatures and prog.creatures[creatureType]
+    local idx = tonumber(prog.activeCreatureIndex) or 1
+    local creature = prog.creatures and prog.creatures[CreatureSlotKey(idx)]
     if creature and creature.unlocked then
+        creature.type = creatureType
         prog.creatureType = creatureType
         prog.level = creature.level or 1
         prog.creatureXP = creature.creatureXP or 0
@@ -330,15 +387,17 @@ function DB:SetCreatureType(creatureType)
     return nil
 end
 
-function DB:SaveCreatureProgression(prog, creatureType)
+function DB:SaveCreatureProgression(prog, creatureIndex)
     prog = prog or self:GetProgression()
-    creatureType = creatureType or prog.creatureType
     if type(prog.creatures) ~= "table" then prog.creatures = {} end
-    if type(prog.creatures[creatureType]) ~= "table" then
-        prog.creatures[creatureType] = { level = 1, creatureXP = 0, unlocked = false }
+    local idx = tonumber(creatureIndex) or tonumber(prog.activeCreatureIndex) or 1
+    local key = CreatureSlotKey(idx)
+    if type(prog.creatures[key]) ~= "table" then
+        prog.creatures[key] = { level = 1, creatureXP = 0, unlocked = (idx == 1), type = nil }
     end
-    local creature = prog.creatures and prog.creatures[creatureType]
+    local creature = prog.creatures[key]
     if creature then
+        creature.type = prog.creatureType or creature.type
         creature.level = prog.level or creature.level or 1
         creature.creatureXP = prog.creatureXP or creature.creatureXP or 0
     end

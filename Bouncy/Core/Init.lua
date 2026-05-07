@@ -110,6 +110,10 @@ SlashCmdList["BOUNCY"] = function(msg)
 
     elseif cmd == "evolve" then
         local prog = B.DB:GetProgression()
+        if not prog.creatureType then
+            print(string.format("|cff%sBouncy|r Choose a creature type first.", B.COLOR.TITLE))
+            return
+        end
         if B.Leveling:CanEvolve(prog) then
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
