@@ -20,6 +20,7 @@ local PANEL_CUSTOM   = 5
 
 local activePanel    = PANEL_STATS
 local activeCharKey  = nil   -- which char is selected in zones panel
+local activeStatsCreature = nil -- which creature tab is selected in stats panel
 
 local function EnsureCreatureStats(char)
     if type(char) ~= "table" then return nil end
@@ -266,7 +267,7 @@ function Details:Init()
     -- Title
     local title = MakeFont(f, 18, "OUTLINE")
     title:SetPoint("TOP", f, "TOP", 0, -12)
-    title:SetText(string.format("|cff%sBOUNCY  -  Statistics", B.COLOR.TITLE))
+    title:SetText(string.format("|cff%sBOUNCY  -  Creatures / Statistics", B.COLOR.TITLE))
 
     -- Close button
     local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
@@ -278,12 +279,12 @@ function Details:Init()
 
     -- Tabs
     self.tabs = {}
-    local tabLabels = { "Stats", "Zones", "Leaderboard", "Achievements", "Customize" }
-    local tabX      = { 8, 114, 220, 326, 432 }
+    local tabLabels = { "Creatures/Stats", "Zones", "Leaderboard", "Achievements", "Customize" }
+    local tabX      = { 8, 128, 234, 340, 446 }
     for i, lbl in ipairs(tabLabels) do
         local btn = CreateTab(f, lbl, i, tabX[i])
-        btn:SetWidth(100)
-        if lbl == "Achievements" then btn.label:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE") end
+        btn:SetWidth(i == 1 and 116 or 100)
+        if lbl == "Achievements" or lbl == "Creatures/Stats" then btn.label:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE") end
         btn:SetScript("OnClick", function() Details:ShowPanel(i) end)
         self.tabs[i] = btn
     end
@@ -455,12 +456,62 @@ function Details:_BuildStatsPanel(p)
         return btn
     end
 
+    local function MakeCreatureTab(creatureType, idx)
+        local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[creatureType] or {}
+        local btn = CreateFrame("Button", nil, p, "BackdropTemplate")
+        btn:SetSize(98, 28)
+        btn:SetBackdrop({ bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+                          edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                          edgeSize = 9, insets = { left=2,right=2,top=2,bottom=2 } })
+        btn._creatureType = creatureType
+        btn._unlockTip = rule.tooltip or "Unlock this creature by leveling your pets."
+
+        local fs = btn:CreateFontString(nil, "OVERLAY")
+        fs:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        fs:SetAllPoints()
+        fs:SetJustifyH("CENTER")
+        fs:SetText(rule.label or creatureType)
+        btn.label = fs
+
+        btn:SetScript("OnEnter", function(self)
+            if not GameTooltip then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(rule.label or creatureType, 1, 1, 1)
+            GameTooltip:AddLine(creatureType, 0.65, 0.85, 1)
+            GameTooltip:AddLine(self._unlockTip or "", 1, 0.85, 0.35, true)
+            GameTooltip:Show()
+        end)
+        btn:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+        btn:SetScript("OnClick", function()
+            local prog = B.DB:GetProgression()
+            local creature = prog.creatures and prog.creatures[creatureType]
+            if creature and creature.unlocked and B.DB:SetCreatureType(creatureType) then
+                activeStatsCreature = creatureType
+                RecordCreatureTypeSelection()
+                Details:Refresh()
+            else
+                PlayCreaturePopup(p, "Locked", {1.0, 0.45, 0.2})
+            end
+        end)
+        return btn
+    end
+
+    p.creatureTabs = {}
+    local tabSpacing = 104
+    local tabStartX = 16
+    for i, creatureType in ipairs(B.CREATURE_TYPES or {}) do
+        local btn = MakeCreatureTab(creatureType, i)
+        btn:SetPoint("TOPLEFT", p, "TOPLEFT", tabStartX + ((i - 1) * tabSpacing), -184)
+        p.creatureTabs[creatureType] = btn
+    end
+
     p.evolveBtn = MakeSmallButton("Feed", 90, function()
         local prog = B.DB:GetProgression()
         if B.Leveling:CanEvolve(prog) then
             local req = B.Leveling:GetCreatureXPRequirement(prog.level or 1)
             prog.creatureXP = math.max(0, (prog.creatureXP or 0) - req)
             prog.level = (prog.level or 1) + 1
+            if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
             RecordCreatureEvolution()
             PlayCreatureEvolveAnim(p)
             PlayCreatureLevelupShine(p)
@@ -474,6 +525,7 @@ function Details:_BuildStatsPanel(p)
                 prog.creatureXP = (prog.creatureXP or 0) + feedAmount
                 RecordCreatureFeed()
                 local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
+                if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
                 PlayCreatureFeedAnim(p)
                 if autoLevel then PlayCreatureLevelupShine(p) end
                 SpawnCreatureParticles(p, false)
@@ -545,8 +597,16 @@ function Details:_RefreshStats(p)
     local char = B.DB:GetChar()
     if not char then return end
     local prog = B.DB:GetProgression()
+    if not activeStatsCreature or not (prog.creatures and prog.creatures[activeStatsCreature] and prog.creatures[activeStatsCreature].unlocked) then
+        activeStatsCreature = prog.creatureType or ((B.CREATURE_TYPES and B.CREATURE_TYPES[1]) or "Astral")
+    end
+    if activeStatsCreature ~= prog.creatureType then
+        B.DB:SetCreatureType(activeStatsCreature)
+        prog = B.DB:GetProgression()
+    end
 
     if B.Leveling and B.Leveling.AdvanceCreatureNonEvolutionLevels and B.Leveling:AdvanceCreatureNonEvolutionLevels(prog) then
+        if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.creatureType) end
         if B.Achievements then B.Achievements:Evaluate(char, prog) end
     end
     local creatureLvl = prog.level or 1
@@ -569,7 +629,7 @@ function Details:_RefreshStats(p)
         p.artwork:SetSize(128, 128)
         p.artwork:ClearAllPoints()
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
-        local texturePrefix = ((prog.creatureType == "Fire" or prog.creatureType == "Water" or prog.creatureType == "Electric") and prog.creatureType) or "Astral"
+        local texturePrefix = (B.CREATURE_LEVELS and B.CREATURE_LEVELS[prog.creatureType] and prog.creatureType) or "Astral"
         p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", texturePrefix, stage.art))
         local bonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1, prog)
         local creatureLabel = B.Leveling:GetCreatureLabel(prog.creatureType, creatureLvl)
@@ -582,6 +642,31 @@ function Details:_RefreshStats(p)
         p.xpBar:Show()
         p.xpLabel:Show()
     end
+    for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
+        local btn = p.creatureTabs and p.creatureTabs[creatureType]
+        local creature = prog.creatures and prog.creatures[creatureType]
+        if btn and creature then
+            local isActive = (creatureType == prog.creatureType)
+            local isUnlocked = creature.unlocked
+            local rule = B.CREATURE_UNLOCKS and B.CREATURE_UNLOCKS[creatureType]
+            btn.label:SetText(string.format("%s\nLv.%d%s", rule and rule.label or creatureType, creature.level or 1, isUnlocked and "" or " |cff888888(locked)|r"))
+            btn:SetEnabled(true)
+            if isActive then
+                btn:SetBackdropColor(0.12, 0.20, 0.42, 0.98)
+                btn:SetBackdropBorderColor(0.50, 0.78, 1.0, 1.0)
+                btn.label:SetTextColor(0.6, 0.9, 1.0)
+            elseif isUnlocked then
+                btn:SetBackdropColor(0.06, 0.08, 0.16, 0.94)
+                btn:SetBackdropBorderColor(0.30, 0.50, 0.90, 0.65)
+                btn.label:SetTextColor(0.9, 0.9, 0.9)
+            else
+                btn:SetBackdropColor(0.04, 0.04, 0.06, 0.88)
+                btn:SetBackdropBorderColor(0.25, 0.25, 0.30, 0.55)
+                btn.label:SetTextColor(0.45, 0.45, 0.45)
+            end
+        end
+    end
+
     local playerLevelData = B.Leveling:GetLevelForXP(prog.xp or 0, true)
     local _, pCur, pNext = B.Leveling:GetProgress(prog.xp or 0)
     local playerFrac = 1
