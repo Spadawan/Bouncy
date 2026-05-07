@@ -236,6 +236,29 @@ local function IsCreatureType(value)
 end
 
 
+local function LegacyCreatureScore(creature, preferred)
+    if type(creature) ~= "table" then return -1 end
+    local score = ((creature.level or 1) * 100000) + (creature.creatureXP or 0)
+    if creature.unlocked then score = score + 10000 end
+    if preferred then score = score + 1000 end
+    return score
+end
+
+local function FindBestLegacyTypedCreature(prog, preferredType)
+    local bestType, bestCreature, bestScore = nil, nil, -1
+    if type(prog.creatures) ~= "table" then return nil, nil end
+    for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
+        local candidate = prog.creatures[creatureType]
+        if type(candidate) == "table" and (candidate.unlocked or candidate.level or candidate.creatureXP) then
+            local score = LegacyCreatureScore(candidate, creatureType == preferredType)
+            if score > bestScore then
+                bestType, bestCreature, bestScore = creatureType, candidate, score
+            end
+        end
+    end
+    return bestType, bestCreature
+end
+
 function DB:GetMaxCreatureLevel(prog)
     prog = prog or self:GetProgression()
     local maxLevel = 1
@@ -257,20 +280,8 @@ function DB:EnsureCreatureState(prog)
     -- Migrate both the original single-creature save and the previous keyed-by-type
     -- implementation into slot 1. Slot 1 is whatever creature the player already had.
     if not prog.creatureSlotsMigrated then
-        local typedCreatures = prog.creatures
-        local migrated = nil
-        if activeType and type(typedCreatures[activeType]) == "table" then
-            migrated = typedCreatures[activeType]
-        else
-            for _, creatureType in ipairs(B.CREATURE_TYPES or {}) do
-                local candidate = typedCreatures[creatureType]
-                if type(candidate) == "table" and (candidate.unlocked or candidate.level or candidate.creatureXP) then
-                    activeType = creatureType
-                    migrated = candidate
-                    break
-                end
-            end
-        end
+        local migratedType, migrated = FindBestLegacyTypedCreature(prog, activeType)
+        if migratedType then activeType = migratedType end
 
         prog.creatures = {}
         local slot = {
@@ -282,6 +293,24 @@ function DB:EnsureCreatureState(prog)
         prog.creatures["1"] = slot
         prog.activeCreatureIndex = 1
         prog.creatureSlotsMigrated = true
+    end
+
+    -- Repair saves produced by the first multi-creature builds: if typed legacy
+    -- entries are still present, keep the strongest/previously chosen one in slot 1
+    -- instead of letting the default Astral level 1 entry win.
+    if not prog.creatureSlotsMigrationV2 then
+        local migratedType, migrated = FindBestLegacyTypedCreature(prog, activeType)
+        local slot1 = prog.creatures["1"]
+        if migrated and (not slot1 or LegacyCreatureScore(migrated, migratedType == activeType) > LegacyCreatureScore(slot1, slot1 and slot1.type == activeType)) then
+            prog.creatures["1"] = {
+                type = migratedType,
+                level = migrated.level or 1,
+                creatureXP = migrated.creatureXP or 0,
+                unlocked = true,
+            }
+            prog.activeCreatureIndex = 1
+        end
+        prog.creatureSlotsMigrationV2 = true
     end
 
     local slotCount = #(B.CREATURE_UNLOCKS or {})
