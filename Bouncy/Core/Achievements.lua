@@ -60,6 +60,52 @@ local function SpecialCount(char, field)
     return (char.specialJumps and char.specialJumps[field]) or 0
 end
 
+local function CreatureSlotCount()
+    local count = #(B.CREATURE_UNLOCKS or {})
+    if count == 0 then count = #(B.CREATURE_TYPES or {}) end
+    if count == 0 then count = 5 end
+    return count
+end
+
+local function EnsureCreatures(prog)
+    if prog and B.DB and B.DB.EnsureCreatureState then
+        B.DB:EnsureCreatureState(prog)
+    end
+    return (prog and prog.creatures) or {}
+end
+
+local function CountUnlockedCreatures(prog)
+    local creatures = EnsureCreatures(prog)
+    local total = 0
+    for i = 1, CreatureSlotCount() do
+        local creature = creatures[tostring(i)]
+        if creature and creature.unlocked then total = total + 1 end
+    end
+    return total
+end
+
+local function CountTypedCreatures(prog)
+    local creatures = EnsureCreatures(prog)
+    local total = 0
+    for i = 1, CreatureSlotCount() do
+        local creature = creatures[tostring(i)]
+        if creature and creature.unlocked and creature.type then total = total + 1 end
+    end
+    return total
+end
+
+local function HighestCreatureLevel(prog)
+    local creatures = EnsureCreatures(prog)
+    local best = 1
+    for i = 1, CreatureSlotCount() do
+        local creature = creatures[tostring(i)]
+        if creature and creature.unlocked then
+            best = math.max(best, creature.level or 1)
+        end
+    end
+    return best
+end
+
 local function ProgressAchievement(id, category, title, description, icon, points, goal, progressFn, rewardTitle)
     return {
         id = id,
@@ -105,6 +151,21 @@ end
 local function PetLevel(goal, id, title, description, icon, points)
     return ProgressAchievement(id, "Companion", title, description, icon, points, goal,
         function(_, prog) return (prog and prog.level) or 1, goal end)
+end
+
+local function CreatureUnlockCount(goal, id, title, description, icon, points, rewardTitle)
+    return ProgressAchievement(id, "Companion", title, description, icon, points, goal,
+        function(_, prog) return CountUnlockedCreatures(prog), goal end, rewardTitle)
+end
+
+local function CreatureTypedCount(goal, id, title, description, icon, points, rewardTitle)
+    return ProgressAchievement(id, "Companion", title, description, icon, points, goal,
+        function(_, prog) return CountTypedCreatures(prog), goal end, rewardTitle)
+end
+
+local function AnyCreatureLevel(goal, id, title, description, icon, points, rewardTitle)
+    return ProgressAchievement(id, "Companion", title, description, icon, points, goal,
+        function(_, prog) return HighestCreatureLevel(prog), goal end, rewardTitle)
 end
 
 
@@ -155,9 +216,25 @@ local ACHIEVEMENTS = {
     PlayerLevel(100, "lord_of_the_leap", "Lord of the Leap", "Reach player jump level 100.", "Interface\\Icons\\Achievement_Level_100", 50,
         { id="title_lord_of_the_leap_achievement", title="Lord of Every Leap", color="FF8000", level=999 }),
 
-    PetLevel(3, "snack_apprentice", "Snack Apprentice", "Raise your companion to level 3.", "Interface\\Icons\\INV_Misc_Food_59", 10),
-    PetLevel(6, "evolution_enthusiast", "Evolution Enthusiast", "Raise your companion to level 6.", "Interface\\Icons\\Ability_Hunter_BeastCall", 15),
-    PetLevel(12, "beast_bond", "Beast Bond", "Raise your companion to level 12.", "Interface\\Icons\\Ability_Hunter_BeastWithin", 25),
+    CreatureUnlockCount(1, "first_creature", "First Creature", "Obtain your first creature companion.", "Interface\\Icons\\Ability_Hunter_BeastCall", 5,
+        { id="title_creature_keeper", title="Creature Keeper", color="FFFFFF", rarity="common", level=999 }),
+    CreatureUnlockCount(2, "second_creature", "Second Creature", "Unlock your second creature slot.", "Interface\\Icons\\Ability_Hunter_BeastTaming", 10),
+    CreatureUnlockCount(3, "third_creature", "Third Creature", "Unlock your third creature slot.", "Interface\\Icons\\Ability_Hunter_Pet_Bear", 15,
+        { id="title_pack_friend", title="Pack Friend", color="0070DD", rarity="rare", level=999 }),
+    CreatureUnlockCount(4, "fourth_creature", "Fourth Creature", "Unlock your fourth creature slot.", "Interface\\Icons\\Ability_Hunter_Pet_Wolf", 20),
+    CreatureUnlockCount(5, "final_creature", "Complete Creature Roster", "Unlock the final creature slot.", "Interface\\Icons\\Achievement_Reputation_KirinTor", 35,
+        { id="title_menagerie_keeper", title="Menagerie Keeper", color="A335EE", rarity="epic", level=999 }),
+    CreatureTypedCount(5, "full_creature_roster_named", "Names for Everyone", "Choose a type for every unlocked creature in a complete roster.", "Interface\\Icons\\Achievement_GuildPerk_EveryonesFriend", 25,
+        { id="title_beast_curator", title="Beast Curator", color="0070DD", rarity="rare", level=999 }),
+    PetLevel(3, "snack_apprentice", "Snack Apprentice", "Raise your active companion to level 3.", "Interface\\Icons\\INV_Misc_Food_59", 10),
+    PetLevel(6, "evolution_enthusiast", "Evolution Enthusiast", "Raise your active companion to level 6.", "Interface\\Icons\\Ability_Hunter_BeastCall", 15),
+    PetLevel(12, "beast_bond", "Beast Bond", "Raise your active companion to level 12.", "Interface\\Icons\\Ability_Hunter_BeastWithin", 25),
+    AnyCreatureLevel(20, "creature_adept", "Creature Adept", "Raise any creature to level 20.", "Interface\\Icons\\Achievement_Level_20", 20,
+        { id="title_creature_adept", title="Creature Adept", color="0070DD", rarity="rare", level=999 }),
+    AnyCreatureLevel(40, "creature_ascendant", "Creature Ascendant", "Raise any creature to level 40.", "Interface\\Icons\\Achievement_Level_40", 35,
+        { id="title_creature_ascendant", title="Creature Ascendant", color="A335EE", rarity="epic", level=999 }),
+    AnyCreatureLevel(65, "creature_mythic", "Creature Mythic", "Raise any creature to level 65.", "Interface\\Icons\\Achievement_Level_70", 60,
+        { id="title_creature_mythic", title="Creature Mythic", color="FF8000", rarity="legendary", level=999 }),
     CreatureStat(10, "feeds", "treat_time", "Treat Time", "Feed your companion 10 times.", "Interface\\Icons\\INV_Misc_Food_59", 5),
     CreatureStat(50, "feeds", "bottomless_bowl", "Bottomless Bowl", "Feed your companion 50 times.", "Interface\\Icons\\INV_Misc_Food_15", 10),
     CreatureStat(10, "consecutiveFeeds", "snack_streak", "Snack Streak", "Feed your companion 10 times in a row without evolving.", "Interface\\Icons\\INV_Misc_Food_60", 15),
@@ -292,7 +369,11 @@ function Achievements:BuildTooltip(tooltip, achievement, char, prog)
     tooltip:AddLine(string.format("Progress: %s/%s", B.FormatNum(current), B.FormatNum(goal)), 0.7, 0.9, 1.0)
     tooltip:AddLine(string.format("Achievement Points: %d", achievement.points or 0), 1.0, 0.82, 0.0)
     if achievement.rewardTitle then
-        tooltip:AddLine(string.format("Reward Title: %s", achievement.rewardTitle.title or "Title"), 1.0, 0.82, 0.0)
+        local rewardRarity = achievement.rewardTitle.rarity or (B.GetTitleRarityFromColor and B.GetTitleRarityFromColor(achievement.rewardTitle.color)) or "epic"
+        local rarityInfo = B.GetTitleRarityInfo and B.GetTitleRarityInfo(rewardRarity)
+        tooltip:AddLine(string.format("Reward Title: %s (%s)",
+            achievement.rewardTitle.title or "Title",
+            (rarityInfo and rarityInfo.label) or "Epic"), 1.0, 0.82, 0.0)
     end
     if isUnlocked and char and char.achievements and char.achievements[achievement.id] and char.achievements[achievement.id].earnedAt then
         tooltip:AddLine(date("Earned %Y-%m-%d", char.achievements[achievement.id].earnedAt), 0.5, 1.0, 0.5)
