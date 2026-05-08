@@ -252,6 +252,19 @@ function Details:Init()
     f:SetScript("OnDragStop",  f.StopMovingOrSizing)
     f:SetClipsChildren(true)
 
+    if UISpecialFrames then
+        local registeredForEscape = false
+        for _, frameName in ipairs(UISpecialFrames) do
+            if frameName == "Bouncy_Details" then
+                registeredForEscape = true
+                break
+            end
+        end
+        if not registeredForEscape then
+            table.insert(UISpecialFrames, "Bouncy_Details")
+        end
+    end
+
     f:SetBackdrop({
         bgFile   = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -633,8 +646,11 @@ function Details:_RefreshStats(p)
         p.artwork:SetSize(128, 128)
         p.artwork:ClearAllPoints()
         p.artwork:SetPoint("TOPLEFT", p, "TOPLEFT", 16, -10)
-        local texturePrefix = (B.CREATURE_LEVELS and B.CREATURE_LEVELS[prog.creatureType] and prog.creatureType) or "Astral"
-        p.artwork:SetTexture(string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", texturePrefix, stage.art))
+        local levelSet = B.CREATURE_LEVELS and B.CREATURE_LEVELS[prog.creatureType]
+        local stageData = levelSet and levelSet[stage.art]
+        local artworkPath = (stageData and stageData.artwork)
+            or string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", prog.creatureType or "Astral", stage.art)
+        p.artwork:SetTexture(artworkPath)
         local activeBonusPct = B.Leveling:GetCreatureBonusPercent(prog.level or 1, prog)
         local totalBonusPct = (B.Leveling.GetTotalCreatureBonusPercent and B.Leveling:GetTotalCreatureBonusPercent(prog)) or activeBonusPct
         local creatureLabel = B.Leveling:GetCreatureLabel(prog.creatureType, creatureLvl)

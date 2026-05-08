@@ -26,14 +26,15 @@ B.CREATURE_UNLOCKS = {
     [5] = { unlockLevel = 40, label = "Creature 5", tooltip = "Unlocks when any creature reaches level 40." },
 }
 
-local function BuildCreatureLevelSet(prefix)
+local function BuildCreatureLevelSet(prefix, artworkPrefix)
+    artworkPrefix = artworkPrefix or prefix
     local out = {}
     for i = 1, 6 do
         out[i] = {
             level = i,
             name = string.format("%s Evolution %d", prefix, i),
             threshold = B.LEVELS and B.LEVELS[i] and B.LEVELS[i].threshold or 0,
-            artwork = string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", prefix, i),
+            artwork = string.format("Interface\\AddOns\\Bouncy\\media\\%s_%02d.tga", artworkPrefix, i),
         }
     end
     return out
@@ -140,7 +141,7 @@ B.CREATURE_LEVELS = {
     Astral = BuildCreatureLevelSet("Astral"),
     Fire = BuildCreatureLevelSet("Fire"),
     Water = BuildCreatureLevelSet("Water"),
-    Lunar = BuildCreatureLevelSet("Lunar"),
+    Lunar = BuildCreatureLevelSet("Lunar", "Luna"),
     Electric = BuildCreatureLevelSet("Electric"),
 }
 
