@@ -7,6 +7,8 @@ local B        = _G.Bouncy
 B.Leveling     = {}
 local Leveling = B.Leveling
 
+local CREATURE_XP_REQUIREMENT_MULTIPLIER = 0.90
+
 local EVOLUTION_STAGES = {
     { min = 1,  max = 5,  art = 1, label = "Astral Hatchling" },
     { min = 6,  max = 15, art = 2, label = "Astral Youngling" },
@@ -82,6 +84,12 @@ function Leveling:GetCreatureLabel(creatureType, level)
 end
 
 function Leveling:GetCreatureXPRequirement(level)
+    level = math.max(1, tonumber(level) or 1)
+
+    local function ReduceRequirement(req)
+        return math.max(1, math.floor((req or 1) * CREATURE_XP_REQUIREMENT_MULTIPLIER + 0.5))
+    end
+
     local anchors = {
         [1] = 200, -- lvl 1 -> 2
         [2] = 300, -- lvl 2 -> 3
@@ -89,14 +97,14 @@ function Leveling:GetCreatureXPRequirement(level)
         [4] = 550, -- lvl 4 -> 5
     }
     if anchors[level] then
-        return anchors[level]
+        return ReduceRequirement(anchors[level])
     end
 
     local req = anchors[4]
     for _ = 5, level do
         req = math.floor(req * 1.35 + 0.5)
     end
-    return req
+    return ReduceRequirement(req)
 end
 
 function Leveling:GetCreatureBonusPercent(level, prog)
