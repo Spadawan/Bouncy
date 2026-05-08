@@ -85,12 +85,35 @@ function B.GetLevelTitleID(title)
     return tostring(title or ""):gsub("%s+", "_"):lower()
 end
 
-function B.GetTitleRarityColor(level)
+B.TITLE_RARITIES = {
+    common = { label = "Common", color = "FFFFFF" },
+    rare = { label = "Rare", color = "0070DD" },
+    epic = { label = "Epic", color = "A335EE" },
+    legendary = { label = "Legendary", color = "FF8000" },
+}
+
+function B.GetTitleRarityForLevel(level)
     level = tonumber(level) or 1
-    if level >= 85 then return "FF8000" end -- legendary
-    if level >= 50 then return "A335EE" end -- epic
-    if level >= 25 then return "0070DD" end -- rare
-    return "FFFFFF" -- common
+    if level >= 85 then return "legendary" end
+    if level >= 50 then return "epic" end
+    if level >= 25 then return "rare" end
+    return "common"
+end
+
+function B.GetTitleRarityInfo(rarity)
+    return B.TITLE_RARITIES[rarity or "common"] or B.TITLE_RARITIES.common
+end
+
+function B.GetTitleRarityFromColor(color)
+    color = tostring(color or ""):upper()
+    if color == "FF8000" or color == "FFD700" then return "legendary" end
+    if color == "A335EE" then return "epic" end
+    if color == "0070DD" then return "rare" end
+    return "common"
+end
+
+function B.GetTitleRarityColor(level)
+    return B.GetTitleRarityInfo(B.GetTitleRarityForLevel(level)).color
 end
 
 -- Returns unique level-based and achievement-reward title unlocks in progression order.
@@ -106,6 +129,7 @@ function B.GetLevelTitleMilestones()
                 level = lvl.level,
                 title = title,
                 color = B.GetTitleRarityColor(lvl.level),
+                rarity = B.GetTitleRarityForLevel(lvl.level),
                 source = "level",
             }
             seen[id] = true
@@ -118,7 +142,8 @@ function B.GetLevelTitleMilestones()
                     id = reward.id,
                     level = reward.level or 999,
                     title = reward.title,
-                    color = reward.color or "A335EE",
+                    color = reward.color or B.GetTitleRarityInfo(reward.rarity or "epic").color,
+                    rarity = reward.rarity or B.GetTitleRarityFromColor(reward.color),
                     source = "achievement",
                 }
                 seen[reward.id] = true

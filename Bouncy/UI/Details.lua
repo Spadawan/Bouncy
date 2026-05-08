@@ -718,9 +718,16 @@ function Details:_RefreshStats(p)
     p.streakLabel:SetText(string.format("Best streak: |cff%s%d|r jumps",
         B.COLOR.STREAK, char.bestStreak or 0))
 
+    local function FormatTitleRarity(title)
+        local rarityInfo = B.GetTitleRarityInfo and B.GetTitleRarityInfo(title and title.rarity)
+        return rarityInfo and rarityInfo.label or "Common"
+    end
+
     local selectedTitle = B.Leveling:GetSelectedPlayerTitle(prog)
     if selectedTitle then
-        p.titleLine:SetText(string.format("Displayed title: |cff%s%s|r", selectedTitle.color or "33FF66", selectedTitle.title or ""))
+        p.titleLine:SetText(string.format("Displayed title: |cff%s%s|r |cff%s(%s)|r",
+            selectedTitle.color or "33FF66", selectedTitle.title or "",
+            selectedTitle.color or "33FF66", FormatTitleRarity(selectedTitle)))
     else
         p.titleLine:SetText(string.format("Displayed title: |cff%sNone unlocked yet|r", B.COLOR.DIM))
     end
@@ -730,7 +737,9 @@ function Details:_RefreshStats(p)
             local unlockedTitles = B.Leveling:GetUnlockedPlayerTitles(prog)
             for _, title in ipairs(unlockedTitles) do
                 local info = UIDropDownMenu_CreateInfo()
-                info.text = string.format("|cff%s%s|r", title.color or "33FF66", title.title or "")
+                info.text = string.format("|cff%s%s|r |cff%s(%s)|r",
+                    title.color or "33FF66", title.title or "",
+                    title.color or "33FF66", FormatTitleRarity(title))
                 info.value = title.id
                 info.checked = (title.id == prog.selectedPlayerTitle)
                 info.func = function()
@@ -1361,7 +1370,13 @@ function Details:_RefreshAchievements(p)
         w.titleFS:SetText(string.format("|cff%s%s|r", isUnlocked and "FFD700" or "BBBBBB", achievement.title or "Achievement"))
         local desc = achievement.description or ""
         if achievement.rewardTitle then
-            desc = desc .. string.format("  |cffffd700Reward:|r |cff%s%s|r", achievement.rewardTitle.color or "A335EE", achievement.rewardTitle.title or "Title")
+            local rewardRarity = achievement.rewardTitle.rarity or (B.GetTitleRarityFromColor and B.GetTitleRarityFromColor(achievement.rewardTitle.color)) or "epic"
+            local rarityInfo = B.GetTitleRarityInfo and B.GetTitleRarityInfo(rewardRarity)
+            desc = desc .. string.format("  |cffffd700Reward:|r |cff%s%s|r |cff%s(%s)|r",
+                achievement.rewardTitle.color or (rarityInfo and rarityInfo.color) or "A335EE",
+                achievement.rewardTitle.title or "Title",
+                achievement.rewardTitle.color or (rarityInfo and rarityInfo.color) or "A335EE",
+                (rarityInfo and rarityInfo.label) or "Epic")
         end
         w.descFS:SetText(string.format("|cff%s%s|r", isUnlocked and "FFFFFF" or "888888", desc))
         w.pointsFS:SetText(string.format("|cffffd700%d|r", achievement.points or 0))
@@ -1380,7 +1395,11 @@ function Details:_RefreshAchievements(p)
             GameTooltip:AddLine(string.format("Progress: %s/%s", B.FormatNum(current), B.FormatNum(goal)), 0.7, 0.9, 1.0)
             GameTooltip:AddLine(string.format("Achievement Points: %d", achievement.points or 0), 1.0, 0.82, 0.0)
             if achievement.rewardTitle then
-                GameTooltip:AddLine(string.format("Reward Title: %s", achievement.rewardTitle.title or "Title"), 1.0, 0.82, 0.0)
+                local rewardRarity = achievement.rewardTitle.rarity or (B.GetTitleRarityFromColor and B.GetTitleRarityFromColor(achievement.rewardTitle.color)) or "epic"
+                local rarityInfo = B.GetTitleRarityInfo and B.GetTitleRarityInfo(rewardRarity)
+                GameTooltip:AddLine(string.format("Reward Title: %s (%s)",
+                    achievement.rewardTitle.title or "Title",
+                    (rarityInfo and rarityInfo.label) or "Epic"), 1.0, 0.82, 0.0)
             end
             if isUnlocked then GameTooltip:AddLine(AchievementEarnedText(char, achievement), 0.5, 1.0, 0.5) end
             GameTooltip:Show()
