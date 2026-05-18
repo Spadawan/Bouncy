@@ -519,6 +519,26 @@ function Details:_BuildStatsPanel(p)
         p.creatureTabs[i] = btn
     end
 
+    local function FeedCreature(times)
+        local prog = B.DB:GetProgression()
+        local feedAmount = 50
+        local count = math.max(1, tonumber(times) or 1)
+        local totalCost = feedAmount * count
+        if (prog.xp or 0) < totalCost then
+            PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
+            return prog, false, false
+        end
+
+        prog.xp = prog.xp - totalCost
+        prog.creatureXP = (prog.creatureXP or 0) + totalCost
+        for _ = 1, count do
+            RecordCreatureFeed()
+        end
+        local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
+        if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.activeCreatureIndex) end
+        return prog, true, autoLevel
+    end
+
     p.evolveBtn = MakeSmallButton("Feed", 90, function()
         local prog = B.DB:GetProgression()
         if B.Leveling:CanEvolve(prog) then
@@ -533,26 +553,34 @@ function Details:_BuildStatsPanel(p)
             PlayCreaturePopup(p, "Level up!", {0.4, 1.0, 0.3})
             if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\LevelUp.ogg", "SFX") end
         else
-            local feedAmount = 50
-            if (prog.xp or 0) >= feedAmount then
-                prog.xp = prog.xp - feedAmount
-                prog.creatureXP = (prog.creatureXP or 0) + feedAmount
-                RecordCreatureFeed()
-                local autoLevel = B.Leveling:AdvanceCreatureNonEvolutionLevels(prog)
-                if B.DB.SaveCreatureProgression then B.DB:SaveCreatureProgression(prog, prog.activeCreatureIndex) end
+            local feedProg, fed, autoLevel = FeedCreature(1)
+            prog = feedProg or prog
+            if fed then
                 PlayCreatureFeedAnim(p)
                 if autoLevel then PlayCreatureLevelupShine(p) end
                 SpawnCreatureParticles(p, false)
                 PlayCreaturePopup(p, autoLevel and "Level up!" or "+50 EXP", {0.4, 1.0, 0.3})
                 if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\iEating1.ogg", "SFX") end
-            else
-                PlayCreaturePopup(p, "Not enough player EXP", {1.0, 0.2, 0.2})
             end
         end
         if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
         Details:Refresh()
     end)
     p.evolveBtn:SetPoint("TOP", artwork, "BOTTOM", 0, -8)
+
+    p.feedX10Btn = MakeSmallButton("Feed x10", 90, function()
+        local prog, fed, autoLevel = FeedCreature(10)
+        if fed then
+            PlayCreatureFeedAnim(p)
+            if autoLevel then PlayCreatureLevelupShine(p) end
+            SpawnCreatureParticles(p, false)
+            PlayCreaturePopup(p, autoLevel and "Level up!" or "+500 EXP", {0.4, 1.0, 0.3})
+            if PlaySoundFile then PlaySoundFile("Interface\\AddOns\\Bouncy\\media\\iEating1.ogg", "SFX") end
+        end
+        if B.Achievements then B.Achievements:Evaluate(B.DB:GetChar(), prog) end
+        Details:Refresh()
+    end)
+    p.feedX10Btn:SetPoint("TOP", p.evolveBtn, "BOTTOM", 0, -4)
 
     p.typeHint = MakeFont(p, 10, "")
     p.typeHint:SetPoint("TOP", p, "TOP", 0, -212)
@@ -639,6 +667,7 @@ function Details:_RefreshStats(p)
         p.eggFrame:Show()
         p.lvlName:SetText("|cffffcc00Creature not selected|r")
         p.evolveBtn:Hide()
+        if p.feedX10Btn then p.feedX10Btn:Hide() end
         p.xpBar:Hide()
         p.xpLabel:Hide()
     else
@@ -657,6 +686,7 @@ function Details:_RefreshStats(p)
         p.lvlName:SetText(string.format("|cff%sLevel %d|r  %s  |cff66AAFF+%d%% Active / +%d%% Total XP|r",
             B.COLOR.LEVEL_UP, creatureLvl, creatureLabel, activeBonusPct, totalBonusPct))
         p.evolveBtn:Show()
+        if p.feedX10Btn then p.feedX10Btn:Show() end
         p.xpBar:SetValue(frac)
         p.xpLabel:SetText(string.format("|cff%s%s|r / |cff%s%s|r creature XP",
             B.COLOR.XP, B.FormatNum(prog.creatureXP or 0), B.COLOR.DIM, B.FormatNum(reqXP)))
@@ -796,7 +826,12 @@ function Details:_RefreshStats(p)
         btn:GetFontString():SetTextColor(1, 1, 1)
     end
     if prog.creatureType then
-        p.evolveBtn:SetText(B.Leveling:CanEvolve(prog) and "Evolve" or "Feed")
+        local canEvolve = B.Leveling:CanEvolve(prog)
+        p.evolveBtn:SetText(canEvolve and "Evolve" or "Feed")
+        if p.feedX10Btn then
+            p.feedX10Btn:SetShown(not canEvolve)
+            p.feedX10Btn:SetEnabled((prog.xp or 0) >= 500)
+        end
     end
 end
 
